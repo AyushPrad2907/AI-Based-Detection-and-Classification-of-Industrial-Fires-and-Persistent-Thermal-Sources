@@ -54,8 +54,10 @@ ehthumbs.db
 # =============================================================================
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/*/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+!data/processed/*/.gitkeep
 
 # =============================================================================
 # ML Models & Artifacts

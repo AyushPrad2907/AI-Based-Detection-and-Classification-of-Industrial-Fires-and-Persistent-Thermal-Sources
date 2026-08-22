@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # --- NASA FIRMS ---
     firms_api_key: str = ""
     firms_base_url: str = "https://firms.modaps.eosdis.nasa.gov"
+    firms_timeout_seconds: float = 30.0
+    firms_max_retries: int = 3
+    firms_retry_backoff_factor: float = 1.5
+    firms_default_source: str = "VIIRS_SNPP_NRT"
+    firms_default_country: str = "IND"
 
     # --- Application ---
     secret_key: str = "change-me-in-production"

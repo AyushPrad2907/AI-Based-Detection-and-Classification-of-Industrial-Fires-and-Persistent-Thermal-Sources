@@ -161,14 +161,50 @@ SIH26162/
 ## Development Phases
 
 | Phase | Description | Status |
-|-------|-------------|--------|
-| **Phase 0** | Project foundation & architecture | **Current** |
-| **Phase 1** | Data pipeline — NASA FIRMS integration, preprocessing | Planned |
+|---|---|---|
+| **Phase 0** | Project foundation & architecture | Completed |
+| **Phase 1** | Real NASA FIRMS data ingestion & preprocessing | **Completed** |
 | **Phase 2** | ML model development — fire classification, thermal detection | Planned |
 | **Phase 3** | Backend API — endpoints, database, services | Planned |
 | **Phase 4** | Frontend dashboard — map visualization, real-time monitoring | Planned |
 | **Phase 5** | Integration testing & optimization | Planned |
 | **Phase 6** | Deployment, documentation & demo | Planned |
+
+---
+
+## NASA FIRMS Data Ingestion & Preprocessing (Phase 1)
+
+Download real active fire observations directly from the official NASA FIRMS API and preprocess them for downstream machine learning.
+
+### Ingestion CLI Commands
+
+```bash
+# 1. Download active fires for India (1 day, VIIRS 375m NRT)
+python scripts/download_firms_data.py --country IND --days 1 --source VIIRS_SNPP_NRT
+
+# 2. Download and preprocess in a single execution
+python scripts/download_firms_data.py --country IND --days 1 --preprocess --min-confidence nominal
+
+# 3. Download using a custom bounding box (min_lon, min_lat, max_lon, max_lat)
+python scripts/download_firms_data.py --bbox 68.0,6.0,97.0,37.0 --days 2 --preprocess
+
+# 4. Fetch specific historical date
+python scripts/download_firms_data.py --country IND --days 1 --date 2024-05-01 --preprocess
+```
+
+- Raw downloads are stored in: `data/raw/firms/`
+- Processed outputs are stored in: `data/processed/firms/`
+- Detailed documentation: [docs/data_pipeline.md](docs/data_pipeline.md)
+
+---
+
+## Running Tests
+
+Execute the full backend, service, and ML preprocessing test suite:
+
+```bash
+python -m pytest -v
+```
 
 ---
 
