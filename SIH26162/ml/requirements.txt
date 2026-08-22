@@ -1,0 +1,28 @@
+# ML Pipeline dependencies for SIH26162
+
+# Core scientific computing
+numpy>=1.26.0
+pandas>=2.1.0
+scipy>=1.11.0
+
+# Machine learning
+scikit-learn>=1.3.0
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Geospatial
+geopandas>=0.14.0
+rasterio>=1.3.0
+shapely>=2.0.0
+pyproj>=3.6.0
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Jupyter
+jupyter>=1.0.0
+notebook>=7.0.0
+
+# Testing
+pytest>=7.4.0
