@@ -38,6 +38,19 @@ VALID_SOURCES: Tuple[str, ...] = (
     "LANDSAT_NRT",
 )
 
+# Standard Country Bounding Boxes (min_lon, min_lat, max_lon, max_lat)
+COUNTRY_BOUNDING_BOXES: Dict[str, Tuple[float, float, float, float]] = {
+    "IND": (68.0, 6.0, 97.0, 37.0),        # India
+    "USA": (-125.0, 24.0, -66.0, 49.0),    # United States (Contiguous)
+    "CAN": (-141.0, 41.0, -52.0, 83.0),    # Canada
+    "AUS": (112.0, -44.0, 154.0, -10.0),   # Australia
+    "BRA": (-74.0, -34.0, -34.0, 5.0),     # Brazil
+    "IDN": (95.0, -11.0, 141.0, 6.0),      # Indonesia
+    "RUS": (19.0, 41.0, 180.0, 82.0),      # Russia
+    "CHN": (73.0, 18.0, 135.0, 54.0),      # China
+    "WORLD": (-180.0, -90.0, 180.0, 90.0), # Global World Extent
+}
+
 
 # =============================================================================
 # Custom Exception Hierarchy
@@ -108,7 +121,7 @@ class FIRMSService:
         max_retries: Optional[int] = None,
         retry_backoff: Optional[float] = None,
     ):
-        self.api_key = (api_key or settings.firms_api_key or "").strip()
+        self.api_key = (api_key if api_key is not None else settings.firms_api_key or "").strip()
         self.base_url = (base_url or settings.firms_base_url or "https://firms.modaps.eosdis.nasa.gov").rstrip("/")
         self.timeout = float(timeout if timeout is not None else settings.firms_timeout_seconds)
         self.max_retries = int(max_retries if max_retries is not None else settings.firms_max_retries)
@@ -238,18 +251,23 @@ class FIRMSService:
         target_date: Optional[Union[str, date, datetime]] = None,
     ) -> str:
         """
-        Build URL for FIRMS Country CSV endpoint.
-        Format: {base_url}/api/country/csv/{MAP_KEY}/{source}/{country}/{days}[/{date}]
+        Build URL for FIRMS Country/Area CSV endpoint.
+        Maps known country codes (e.g. IND, USA) to official Area Bounding Boxes.
         """
+        v_country = self.validate_country(country)
+        if v_country in COUNTRY_BOUNDING_BOXES:
+            bbox = COUNTRY_BOUNDING_BOXES[v_country]
+            return self.build_area_url(source=source, bbox=bbox, days=days, target_date=target_date)
+
         self.validate_api_key()
         v_source = self.validate_source(source)
-        v_country = self.validate_country(country)
         v_days = self.validate_days(days)
         v_date = self.validate_date(target_date)
 
         if v_date:
             return f"{self.base_url}/api/country/csv/{self.api_key}/{v_source}/{v_country}/{v_days}/{v_date}"
         return f"{self.base_url}/api/country/csv/{self.api_key}/{v_source}/{v_country}/{v_days}"
+
 
     def _inspect_response_for_errors(self, status_code: int, text: str) -> None:
         """

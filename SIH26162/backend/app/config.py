@@ -15,9 +15,15 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # --- Database ---
+    postgres_user: str = "sih26162_user"
+    postgres_password: str = "change_me_in_production"
+    postgres_db: str = "sih26162_db"
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
     database_url: str = "postgresql+asyncpg://sih26162_user:change_me@localhost:5432/sih26162_db"
 
     # --- NASA FIRMS ---
@@ -29,10 +35,16 @@ class Settings(BaseSettings):
     firms_default_source: str = "VIIRS_SNPP_NRT"
     firms_default_country: str = "IND"
 
+    # --- OpenStreetMap / Overpass ---
+    osm_overpass_url: str = "https://overpass-api.de/api/interpreter"
+
     # --- Application ---
     secret_key: str = "change-me-in-production"
+    backend_port: int = 8000
+    frontend_port: int = 5173
     environment: str = "development"
     debug: bool = True
+
 
 
 # Singleton settings instance

@@ -123,13 +123,24 @@ class TestFIRMSURLBuilder:
         assert url == expected
 
     def test_build_country_url(self, mock_service):
-        url = mock_service.build_country_url(
+        # Known country with bounding box mapping (e.g. IND)
+        url_ind = mock_service.build_country_url(
             source="MODIS_NRT",
             country="IND",
             days=1,
         )
-        expected = "https://firms.modaps.eosdis.nasa.gov/api/country/csv/abcdef1234567890abcdef1234567890/MODIS_NRT/IND/1"
-        assert url == expected
+        expected_ind = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/abcdef1234567890abcdef1234567890/MODIS_NRT/68.0,6.0,97.0,37.0/1"
+        assert url_ind == expected_ind
+
+        # Fallback country without pre-defined bounding box
+        url_other = mock_service.build_country_url(
+            source="MODIS_NRT",
+            country="XYZ",
+            days=1,
+        )
+        expected_other = "https://firms.modaps.eosdis.nasa.gov/api/country/csv/abcdef1234567890abcdef1234567890/MODIS_NRT/XYZ/1"
+        assert url_other == expected_other
+
 
     def test_key_masking(self, mock_service):
         masked = mock_service._mask_key()
