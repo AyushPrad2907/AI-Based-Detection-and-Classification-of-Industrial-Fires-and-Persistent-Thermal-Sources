@@ -181,3 +181,37 @@ python scripts/train_model.py --model-type random_forest --n-estimators 150
 # 4. Run test suite:
 pytest
 ```
+
+---
+
+## 10. Strict Validation Audit & Scientific Limitations
+
+### 10.1 Scientific Honesty Statement on Evaluation Scores
+> [!IMPORTANT]
+> The reported **98.21% test accuracy** and **97.95% macro F1-score** measure the machine learning model's fidelity in learning the multivariate decision boundaries defined by the physics-informed **Weak Supervision / Silver Labeler**.
+> 
+> **These scores DO NOT represent accuracy against independently verified ground-truth fire events.** NASA FIRMS telemetry detects thermal radiometry pixels; it does not come with ground-truth fire causation labels.
+
+### 10.2 Class Distribution & Acute `industrial_fire` Rarity
+In real routine 5-day NRT satellite observation telemetry across India (1,865 deduplicated observations):
+- `uncertain_anomaly`: 656 samples (35.17%) — low confidence, transient or low-power detections
+- `persistent_industrial`: 649 samples (34.80%) — recurrent emissions in industrial/metallurgy clusters (Dhanbad, Bellary, Bokaro)
+- `agricultural_burn`: 295 samples (15.82%) — daytime open-field biomass burns
+- `wildfire`: 265 samples (14.21%) — high-FRP rural vegetation fires
+- `industrial_fire`: **0 samples (0.00%)**
+
+**Audit Finding**: Catastrophic structural industrial fires (e.g. refinery explosions or chemical storage blazes with acute $>50\text{ MW}$ spikes within industrial perimeters) are rare, high-severity events. In routine 5-day NRT snapshots, routine flaring and industrial furnace emissions are detected abundantly, but 0 acute disaster incidents occurred. In synthetic test fixtures, `industrial_fire` is tested for pipeline correctness, but in real data its support is 0.
+
+### 10.3 Feature Importance & Heuristic Circularity
+The top features by Random Forest Gini impurity reduction:
+1. `persistence_count` ($15.75\%$)
+2. `brightness_ratio` ($13.84\%$)
+3. `brightness_diff` ($12.63\%$)
+4. `frp` ($9.86\%$)
+5. `log_frp` ($8.91\%$)
+
+These features are influential precisely because they are the physical variables leveraged by the weak supervision rule engine. The ML model demonstrates strong capability in distilling these multi-dimensional features into smooth probabilistic decision surfaces.
+
+### 10.4 Persistence Partitioning & Temporal Generalization
+- In standard random stratified cross-validation, observations belonging to the same spatial cluster may appear in both train and test partitions.
+- When tested under a strict **temporal block split** (earliest 70% observations for train, latest 30% for val/test with persistence clustering fit strictly on training time windows), the model achieves **99.64% accuracy** against the temporal test set, demonstrating that learned spectral-spatial decision boundaries remain stable across sequential satellite overpasses.

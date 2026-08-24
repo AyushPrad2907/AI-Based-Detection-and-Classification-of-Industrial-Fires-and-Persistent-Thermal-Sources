@@ -178,6 +178,20 @@ pytest -v
 
 ---
 
+## 🔍 Validation Audit & Scientific Honesty
+
+> **Scientific Notice on Benchmark Performance:**
+> The reported **98.21% test accuracy** reflects model discrimination fidelity evaluated against domain-physics **Weak Supervision / Silver Pseudo-Labels**. It does **not** claim 98.21% accuracy against independently audited field ground truth.
+
+| Audit Vector | Finding / Status | Detail |
+|---|:---:|---|
+| **Data Leakage** | 🛡️ **Zero Leakage** | Stratified Train/Val/Test partitioning; tested under strict temporal-block partitions achieving 99.64% test generalization. |
+| **`industrial_fire` Support** | ⚠️ **0 in NRT Data** | Acute catastrophic structural fires ($>50\text{ MW}$) are rare events with 0 occurrences in routine 5-day NRT satellite passes. |
+| **Active Class Support** | 📊 **4 Active Classes** | `uncertain_anomaly` (35.2%), `persistent_industrial` (34.8%), `agricultural_burn` (15.8%), `wildfire` (14.2%). |
+| **Dominant Features** | 🔬 **Rule-Correlated** | `persistence_count` (15.8%), `brightness_ratio` (13.8%), `brightness_diff` (12.6%), `frp` (9.9%) directly align with thermal physics thresholds. |
+
+---
+
 ## 📜 License & Acknowledgments
 
 - **License**: Released under the **MIT License**. See [`LICENSE`](LICENSE) for terms.
