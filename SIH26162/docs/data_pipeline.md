@@ -1,140 +1,183 @@
-# SIH26162 — Data Pipeline Documentation
+# SIH26162 — Data & ML Pipeline Documentation
 
-## 1. Overview & Data Flow Architecture
+## 1. Overview & End-to-End Architecture
 
-The data pipeline transforms real-time and archival Earth observation thermal anomaly data into structured, clean, context-enriched geospatial records ready for machine learning feature engineering and industrial classification.
+The SIH26162 pipeline ingests multi-sensor NASA FIRMS active fire and thermal anomaly observations, extracts multi-dimensional spectral/temporal/spatial features, performs spatio-temporal clustering to discover persistent industrial thermal sources, queries OpenStreetMap (Overpass API) for infrastructure context, and runs ML inference to output classified thermal events with explainable situational risk scores.
 
 ```mermaid
 flowchart TD
     subgraph S1["1. Ingestion Layer"]
-        FIRMS_API["NASA FIRMS API<br/>(VIIRS / MODIS / Landsat)"]
+        FIRMS_API["NASA FIRMS API<br/>(VIIRS SNPP/NOAA-20, MODIS)"]
         CLIENT["FIRMSService<br/>(backend/app/services/firms_service.py)"]
-        CLI["CLI Downloader<br/>(scripts/download_firms_data.py)"]
         RAW_CSV[("Raw CSV Storage<br/>data/raw/firms/")]
     end
 
-    subgraph S2["2. Preprocessing Layer"]
+    subgraph S2["2. Preprocessing & Dataset Layer"]
         PREPROC["FIRMSPreprocessor<br/>(ml/preprocessing/firms_preprocessor.py)"]
-        SCHEMA["Schema & Type Validation"]
-        GEO_VAL["Coordinate Range Validation<br/>[-90, 90] & [-180, 180]"]
-        TIME_PARSE["UTC Timestamp Synthesis<br/>(acq_date + acq_time -> acq_datetime)"]
-        NORM["Cross-Sensor Normalization<br/>(Brightness & Confidence Scoring)"]
-        DEDUP["Spatial-Temporal Deduplication"]
-        FILTERS["Spatial BBox & Confidence Filter"]
-        PROCESSED_CSV[("Processed Data Storage<br/>data/processed/firms/")]
+        LOADER["FIRMSDatasetLoader<br/>(ml/utils/data_utils.py)"]
+        PROCESSED_CSV[("Processed CSV Storage<br/>data/processed/firms/")]
     end
 
-    FIRMS_API -->|Authenticated HTTPS / CSV| CLIENT
-    CLIENT --> CLI
-    CLI --> RAW_CSV
-    RAW_CSV --> PREPROC
-    PREPROC --> SCHEMA
-    SCHEMA --> GEO_VAL
-    GEO_VAL --> TIME_PARSE
-    TIME_PARSE --> NORM
-    NORM --> DEDUP
-    DEDUP --> FILTERS
-    FILTERS --> PROCESSED_CSV
+    subgraph S3["3. Persistence & Context Layer"]
+        CLUSTER["ThermalDetector (Spatio-Temporal DBSCAN)<br/>(ml/models/thermal_detector.py)"]
+        OSM["OSMService (Overpass API + Grid Cache)<br/>(backend/app/services/osm_service.py)"]
+    end
+
+    subgraph S4["4. Feature Engineering & Weak Supervision"]
+        FEATS["FeatureBuilder (29 Features)<br/>(ml/preprocessing/feature_builder.py)"]
+        LABELER["WeakSupervisionLabeler (Domain Physics)<br/>(ml/preprocessing/weak_labeler.py)"]
+    end
+
+    subgraph S5["5. ML Classification & Explainable Risk"]
+        CLASSIFIER["FireClassifier (Random Forest / GBDT)<br/>(ml/models/fire_classifier.py)"]
+        RISK["RiskScorer (Multi-factor Formula)<br/>(ml/inference/risk_scorer.py)"]
+        EVAL["Evaluator & Metrics<br/>(ml/evaluation/evaluator.py)"]
+        API["FastAPI Endpoints (/api/v1/fires/classify, /thermal/sources)<br/>(backend/app/api/v1/)"]
+    end
+
+    FIRMS_API --> CLIENT --> RAW_CSV --> PREPROC --> PROCESSED_CSV --> LOADER
+    LOADER --> CLUSTER
+    LOADER --> OSM
+    CLUSTER --> FEATS
+    OSM --> FEATS
+    FEATS --> LABELER --> CLASSIFIER
+    CLASSIFIER --> EVAL
+    CLASSIFIER --> API
+    RISK --> API
 ```
 
 ---
 
-## 2. NASA FIRMS Data Ingestion (Phase 1)
+## 2. Real NASA FIRMS Dataset & Multi-Sensor Ingestion
 
-### 2.1 Supported Satellite Instruments & Sources
+Observations are collected directly from NASA's Earth Observing System Data and Information System (EOSDIS) FIRMS servers.
 
-| Source Identifier | Sensor & Satellite | Spatial Resolution | Processing Mode |
+### Supported Satellite Products:
+- **VIIRS (Suomi NPP & NOAA-20 / JPSS-1)**: 375m high-resolution channels (`bright_ti4` 3.74µm and `bright_ti5` 11.45µm, FRP in MW).
+- **MODIS (Terra & Aqua)**: 1km resolution channels (`brightness` 4µm and `bright_t31` 11µm, FRP in MW).
+
+---
+
+## 3. Feature Engineering Pipeline (`ml/preprocessing/feature_builder.py`)
+
+The `FeatureBuilder` extracts 29 deterministic, normalized features from each satellite observation:
+
+| Feature Name | Category | Description | Formula / Source |
 |---|---|---|---|
-| `VIIRS_SNPP_NRT` | VIIRS on Suomi-NPP | 375 m | Near Real-Time (NRT) |
-| `VIIRS_NOAA20_NRT` | VIIRS on NOAA-20 (JPSS-1) | 375 m | Near Real-Time (NRT) |
-| `VIIRS_NOAA21_NRT` | VIIRS on NOAA-21 (JPSS-2) | 375 m | Near Real-Time (NRT) |
-| `MODIS_NRT` | MODIS on Terra & Aqua | 1 km | Near Real-Time (NRT) |
-| `VIIRS_SNPP_SP` | VIIRS on Suomi-NPP | 375 m | Standard Processing (SP) |
-| `MODIS_SP` | MODIS on Terra & Aqua | 1 km | Standard Processing (SP) |
-| `LANDSAT_NRT` | TIRS on Landsat 8/9 | 30 m | Near Real-Time (NRT) |
-
-### 2.2 Configuration & Environment Variables
-
-All secrets and endpoints are managed via environment variables (never hardcoded):
-
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `FIRMS_API_KEY` | `string` | *(Required)* | 32-character NASA FIRMS MAP_KEY |
-| `FIRMS_BASE_URL` | `string` | `https://firms.modaps.eosdis.nasa.gov` | FIRMS API Base URL |
-| `FIRMS_TIMEOUT_SECONDS` | `float` | `30.0` | HTTP request timeout in seconds |
-| `FIRMS_MAX_RETRIES` | `integer` | `3` | Max retry attempts for transient errors |
-| `FIRMS_RETRY_BACKOFF_FACTOR` | `float` | `1.5` | Exponential backoff multiplier |
-| `FIRMS_DEFAULT_SOURCE` | `string` | `VIIRS_SNPP_NRT` | Default satellite product |
-| `FIRMS_DEFAULT_COUNTRY` | `string` | `IND` | Default ISO country code |
-
-*Get a free NASA FIRMS MAP_KEY at: [https://firms.modaps.eosdis.nasa.gov/api/area/](https://firms.modaps.eosdis.nasa.gov/api/area/)*
-
-### 2.3 Raw Storage Layout
-
-Downloaded raw observations are stored under `data/raw/firms/` with deterministic naming:
-```
-data/raw/firms/firms_<SOURCE>_<TARGET>_<YYYYMMDD_HHMMSS>.csv
-```
+| `brightness_primary` | Thermal | Primary channel brightness temperature | $T_4$ (VIIRS) or $T_{21/22}$ (MODIS) [Kelvin] |
+| `brightness_secondary` | Thermal | Secondary/background channel temperature | $T_5$ (VIIRS) or $T_{31}$ (MODIS) [Kelvin] |
+| `brightness_diff` | Thermal | Spectral contrast (flaming vs background) | $T_{\text{primary}} - T_{\text{secondary}}$ [Kelvin] |
+| `brightness_ratio` | Thermal | Relative spectral temperature amplification | $T_{\text{primary}} / \max(T_{\text{secondary}}, 1.0)$ |
+| `frp` | Thermal | Fire Radiative Power | Radiative output in Megawatts (MW) |
+| `log_frp` | Thermal | Log-transformed radiative intensity | $\ln(1 + \text{frp})$ |
+| `confidence_score` | Thermal | Normalized detection confidence | $0.0 - 100.0$ |
+| `frp_density` | Thermal | Radiative energy per square kilometer | $\text{frp} / \text{pixel\_area\_approx}$ |
+| `hour` | Temporal | UTC acquisition hour (decimal) | $\text{hour} + \text{minute} / 60.0$ |
+| `is_night` | Temporal | Binary flag for nocturnal observation | $1.0$ if night else $0.0$ |
+| `solar_hour_approx` | Temporal | Local solar time estimate | $(\text{hour} + \text{lon} / 15.0) \pmod{24}$ |
+| `day_of_week` | Temporal | Day of week index | $0.0$ (Mon) to $6.0$ (Sun) |
+| `is_weekend` | Temporal | Binary weekend indicator | $1.0$ if Saturday/Sunday else $0.0$ |
+| `month` | Temporal | Month index | $1.0 - 12.0$ |
+| `sin_hour`, `cos_hour` | Temporal | Cyclical diurnal encodings | $\sin(2\pi h / 24)$, $\cos(2\pi h / 24)$ |
+| `sin_month`, `cos_month`| Temporal | Cyclical seasonal encodings | $\sin(2\pi m / 12)$, $\cos(2\pi m / 12)$ |
+| `latitude`, `longitude` | Spatial | Geographic coordinate position | Decimal degrees |
+| `scan`, `track` | Sensor | Ground pixel dimensions | Cross-track and along-track size [km] |
+| `pixel_area_approx` | Sensor | Approximate single-pixel ground footprint | $\text{scan} \times \text{track}$ [$\text{km}^2$] |
+| `is_viirs`, `is_modis` | Sensor | Binary sensor one-hot flags | Sensor indicator |
+| `dist_to_industrial_km`| Context | Proximity to nearest OSM industrial asset | Great-circle distance in km (Overpass) |
+| `is_near_industrial` | Context | Industrial perimeter flag | $1.0$ if $\text{dist} \le 2.0\text{km}$ else $0.0$ |
+| `persistence_count` | Persistence | Co-located satellite passes | Total detections in spatial cluster |
+| `persistence_days` | Persistence | Duration of persistent heat | Time span from first to last detection [days] |
 
 ---
 
-## 3. Data Preprocessing Pipeline
+## 4. Spatio-Temporal Clustering & Persistent Thermal Sources (`ml/models/thermal_detector.py`)
 
-The preprocessing pipeline (`ml/preprocessing/firms_preprocessor.py`) standardizes diverse sensor outputs into a consistent schema.
+Persistent industrial thermal sources (smelters, flaring stacks, foundries, power plants) emit continuous or semi-continuous heat over days to months, whereas landscape fires are mobile and transient.
 
-### 3.1 Preprocessing Transformations
-
-1. **Schema & Column Name Validation**: Ensures `latitude`, `longitude`, `acq_date`, and `acq_time` are present. Strips whitespace and normalizes column headers to lowercase snake_case.
-2. **Geographic Coordinate Validation**: Validates that latitude is within `[-90.0, 90.0]` and longitude within `[-180.0, 180.0]`. Drops corrupt or non-numeric entries.
-3. **UTC Timestamp Synthesis**:
-   - Converts 1-to-4 digit UTC `acq_time` integers/strings (`730` -> `07:30`, `1430` -> `14:30`) and merges with `acq_date`.
-   - Produces standard `acq_datetime` (`YYYY-MM-DD HH:MM:SS` UTC).
-4. **Cross-Sensor Normalization**:
-   - **Brightness**: Harmonizes primary brightness (`bright_ti4` for VIIRS, `brightness` for MODIS) into `brightness_primary` and secondary brightness (`bright_ti5` for VIIRS, `bright_t31` for MODIS) into `brightness_secondary`.
-   - **Fire Radiative Power**: Normalizes `frp` (in Megawatts) as non-negative float.
-   - **Confidence Scoring**: Maps VIIRS categorical flags (`l` -> 30, `n` -> 70, `h` -> 100) and MODIS percentages (`0-100`) into standardized `confidence_score` (numeric float) and `confidence_category` (`low`, `nominal`, `high`).
-   - **Metadata Preservation**: Retains all raw sensor columns (`scan`, `track`, `satellite`, `instrument`, `version`, `daynight`).
-5. **Exact Spatial-Temporal Deduplication**: Drops duplicate records matching `(latitude, longitude, acq_datetime, satellite, instrument)`.
-6. **Filtering**: Supports optional filtering by minimum confidence (`low`, `nominal`, `high` or numeric threshold) and geographic bounding box `[min_lon, min_lat, max_lon, max_lat]`.
-7. **Deterministic Ordering**: Sorts cleaned records by `[acq_datetime, latitude, longitude]`.
-
-### 3.2 Processed Storage Layout
-
-Cleaned and normalized datasets are saved under `data/processed/firms/`:
-```
-data/processed/firms/firms_<SOURCE>_<TARGET>_<YYYYMMDD_HHMMSS>_processed.csv
-```
+### Clustering Algorithm:
+1. **Distance Metric**: Great-circle **Haversine metric** applied to radian coordinates:
+   $$\epsilon_{\text{rad}} = \frac{R_{\text{meters}}}{R_{\text{Earth}}} = \frac{1200\text{ m}}{6371008.8\text{ m}} \approx 1.883 \times 10^{-4}\text{ rad}$$
+2. **DBSCAN Clustering**: Clusters dense spatial detections with $\text{min\_samples} = 2$.
+3. **Cluster Metrics Calculated**:
+   - `centroid_lat`, `centroid_lon`: Cartesian 3D projection centroid.
+   - `observation_count`: Total satellite passes detecting the anomaly.
+   - `persistence_duration_days`: Time delta between first seen and last seen UTC passes.
+   - `mean_frp`, `max_frp`: Radiative intensity range.
+   - `night_observation_ratio`: Proportion of nocturnal passes (flares/furnaces operate 24/7).
+   - `spatial_radius_meters`: Maximum spread of cluster detections from centroid.
+4. **Persistence Criterion**:
+   $$\text{is\_persistent} = (\text{count} \ge 2 \land \text{duration} \ge 0.5\text{d}) \lor (\text{count} \ge 3)$$
 
 ---
 
-## 4. Running the Ingestion & Preprocessing CLI
+## 5. Weak Supervision & Scientific Transparency (`ml/preprocessing/weak_labeler.py`)
 
-### 4.1 Download Active Fires for India (VIIRS 375m)
-```bash
-python scripts/download_firms_data.py --country IND --days 1 --source VIIRS_SNPP_NRT
-```
+### Transparency Notice:
+NASA FIRMS observations detect active thermal pixels, but do **not** contain ground-truth class labels. To train baseline ML models and benchmark discrimination capability, we use a transparent, rule-based **Weak Supervision / Silver Labeler** based on physical thermal thresholds, spatial recurrence, and OSM context:
 
-### 4.2 Download & Preprocess in One Step
-```bash
-python scripts/download_firms_data.py --country IND --days 1 --preprocess --min-confidence nominal
-```
-
-### 4.3 Download Using a Custom Bounding Box (West, South, East, North)
-```bash
-python scripts/download_firms_data.py --bbox 68.0,6.0,97.0,37.0 --days 2 --preprocess
-```
-
-### 4.4 Using a Specific Historical Date
-```bash
-python scripts/download_firms_data.py --country IND --days 1 --date 2024-05-01 --source MODIS_NRT --preprocess
-```
+1. `persistent_industrial`: Multi-pass persistence ($\ge 2$ observations over $\ge 0.5$ days), proximity ($\le 2\text{km}$) to mapped industrial zones, or nocturnal emissions with steady moderate FRP.
+2. `industrial_fire`: Acute high-power spike ($\text{FRP} \ge 50\text{ MW}$) situated directly inside/adjacent to an industrial facility without baseline persistence.
+3. `wildfire`: High FRP ($\ge 35\text{ MW}$) or large spectral difference ($\Delta T \ge 35\text{K}$) located in remote rural/forest terrain ($> 2\text{km}$ from industrial sites).
+4. `agricultural_burn`: Low-to-moderate FRP ($2 - 35\text{ MW}$) in non-industrial open regions.
+5. `uncertain_anomaly`: Low confidence ($< 35\%$) or negligible radiative intensity.
 
 ---
 
-## 5. Next Stages (Future Phases)
+## 6. Machine Learning Model & Evaluation (`ml/models/fire_classifier.py`)
 
-- **Stage 2: Context Enrichment (OSM)**: Ingest industrial land-use zones and facility perimeters via Overpass API.
-- **Stage 3: Satellite Spectral Processing**: Sentinel-2 / Landsat-8/9 multi-spectral band processing and SWIR/NIR indices.
-- **Stage 4: Feature Engineering**: Combine spatial, temporal, land-use, and spectral metrics into ML feature vectors.
-- **Stage 5: ML Inference**: Classify detections into industrial furnace, flare stack, wildfire, or agricultural burn.
-- **Stage 6: PostGIS Storage & Serving**: Expose classified thermal sources via FastAPI REST endpoints and interactive UI.
+- **Model Architecture**: Stratified Random Forest Classifier with Balanced Class Weighting (`n_estimators=150`, `max_depth=12`, `random_state=42`) within a Scikit-Learn Pipeline (`SimpleImputer(median) -> StandardScaler -> Estimator`).
+- **Data Splitting**: Stratified 70% Train, 15% Validation, 15% Test with fixed random seed (zero data leakage).
+- **Evaluation Metrics Computed**:
+  - Precision, Recall, F1-Score (macro, weighted, per-class)
+  - Confusion Matrix (raw and normalized)
+  - Multi-class ROC-AUC (One-vs-Rest)
+
+---
+
+## 7. OpenStreetMap / Overpass Integration (`backend/app/services/osm_service.py`)
+
+- **Query**: Searches for `landuse=industrial`, `industrial=*`, `power=plant|generator|substation`, `man_made=works|petroleum_refinery|flare|storage_tank`, `building=industrial`.
+- **Spatial Quantization Cache**: In-memory spatial grid cache (~100m quantization) with 1-hour TTL to prevent Overpass rate-limiting.
+- **Failover**: Graceful offline fallback if Overpass is unreachable.
+
+---
+
+## 8. Explainable Risk Scoring Engine (`ml/inference/risk_scorer.py`)
+
+Computes a transparent composite risk score $R \in [0.0, 100.0]$:
+
+$$R = \left( 0.30 \cdot S_{\text{frp}} + 0.25 \cdot S_{\text{prox}} + 0.20 \cdot S_{\text{persist}} + 0.15 \cdot S_{\text{conf}} + 0.10 \cdot S_{\text{night}} \right) \times 100$$
+
+### Component Subscores ($S \in [0, 1]$):
+1. **$S_{\text{frp}}$**: $\min\left(1.0, \frac{\ln(1 + \text{frp})}{\ln(1 + 100)}\right)$
+2. **$S_{\text{prox}}$**: $1.0$ ($\le 200\text{m}$), $0.85$ ($\le 500\text{m}$), $0.60$ ($\le 1.5\text{km}$), $0.30$ ($\le 3\text{km}$), $0.05$ ($> 3\text{km}$)
+3. **$S_{\text{persist}}$**: $0.95$ ($\ge 4$ passes or $\ge 2\text{d}$), $0.65$ ($\ge 2$ passes), $0.15$ (transient)
+4. **$S_{\text{conf}}$**: $\text{confidence} / 100.0$
+5. **$S_{\text{night}}$**: $0.85$ (Night), $0.25$ (Day)
+
+### Risk Classifications:
+- $R \ge 75$: **CRITICAL**
+- $55 \le R < 75$: **HIGH**
+- $35 \le R < 55$: **MODERATE**
+- $R < 35$: **LOW**
+
+---
+
+## 9. CLI Execution Commands
+
+```bash
+# 1. Download & preprocess real multi-day multi-sensor FIRMS data:
+python scripts/download_firms_data.py --country IND --days 5 --source VIIRS_SNPP_NRT --preprocess
+python scripts/download_firms_data.py --country IND --days 5 --source VIIRS_NOAA20_NRT --preprocess
+python scripts/download_firms_data.py --country IND --days 5 --source MODIS_NRT --preprocess
+
+# 2. Discover persistent thermal sources via spatio-temporal clustering:
+python scripts/detect_persistent_sources.py --radius 1200 --min-obs 2
+
+# 3. Train and evaluate the baseline ML classifier:
+python scripts/train_model.py --model-type random_forest --n-estimators 150
+
+# 4. Run test suite:
+pytest
+```

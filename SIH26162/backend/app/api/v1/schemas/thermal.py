@@ -1,22 +1,32 @@
 """
-SIH26162 — Thermal Source Schemas (Placeholder).
-
-These schemas will define the request/response models for
-thermal source monitoring endpoints.
-
-NOT YET IMPLEMENTED — will be defined in Phase 3.
+SIH26162 — Persistent Thermal Source Schemas.
 """
 
-from pydantic import BaseModel
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
 
 
-class ThermalSourceBase(BaseModel):
-    """Base schema for thermal source data. To be expanded."""
+class PersistentThermalClusterResponse(BaseModel):
+    """Schema for a persistent thermal anomaly cluster."""
+    cluster_id: int
+    centroid_latitude: float
+    centroid_longitude: float
+    observation_count: int
+    first_seen_utc: str
+    last_seen_utc: str
+    persistence_duration_days: float
+    mean_frp_mw: float
+    max_frp_mw: float
+    mean_brightness_kelvin: float
+    mean_confidence: float
+    night_observation_ratio: float
+    spatial_radius_meters: float
+    is_persistent: bool
 
-    # Placeholder fields — will be defined when classification model is ready
-    # source_type: str  (industrial, wildfire, agricultural, power_plant, etc.)
-    # latitude: float
-    # longitude: float
-    # temperature_kelvin: float
-    # persistence_days: int
-    pass
+
+class ThermalSourcesQueryResponse(BaseModel):
+    """Schema for persistent thermal sources query response."""
+    total_clusters: int
+    persistent_sources_count: int
+    clusters: List[PersistentThermalClusterResponse]
+    query_parameters: Dict[str, Any]
