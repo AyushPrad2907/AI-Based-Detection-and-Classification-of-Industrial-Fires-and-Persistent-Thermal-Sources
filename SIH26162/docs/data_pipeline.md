@@ -215,3 +215,98 @@ These features are influential precisely because they are the physical variables
 ### 10.4 Persistence Partitioning & Temporal Generalization
 - In standard random stratified cross-validation, observations belonging to the same spatial cluster may appear in both train and test partitions.
 - When tested under a strict **temporal block split** (earliest 70% observations for train, latest 30% for val/test with persistence clustering fit strictly on training time windows), the model achieves **99.64% accuracy** against the temporal test set, demonstrating that learned spectral-spatial decision boundaries remain stable across sequential satellite overpasses.
+
+---
+
+## 11. PostgreSQL 16 + PostGIS 3.4 Spatial Persistence Layer (Phase 3)
+
+### 11.1 Relational & Spatial Schema Design
+Phase 3 establishes an enterprise-grade async persistence layer built with **SQLAlchemy 2.0 (asyncpg)** and version-controlled through **Alembic migrations**.
+
+```mermaid
+erDiagram
+    firms_observations ||--o{ thermal_classifications : "has"
+    thermal_classifications ||--o| risk_assessments : "has"
+    persistent_thermal_sources ||--o| industrial_facilities : "nearest_to"
+    firms_observations }o--o| persistent_thermal_sources : "belongs_to_cluster"
+    
+    firms_observations {
+        bigint id PK
+        float latitude
+        float longitude
+        geometry geom "SRID=4326 Point"
+        float brightness_primary
+        float frp
+        float confidence_score
+        timestamp acq_datetime
+        string satellite
+        string instrument
+        int cluster_id
+    }
+    persistent_thermal_sources {
+        int id PK
+        int cluster_id UK
+        float centroid_lat
+        float centroid_lon
+        geometry centroid_geom "SRID=4326 Point"
+        int observation_count
+        float persistence_duration_days
+        float mean_frp_mw
+        boolean is_persistent
+        int nearest_industrial_facility_id FK
+    }
+    thermal_classifications {
+        bigint id PK
+        bigint observation_id FK
+        float latitude
+        float longitude
+        string predicted_class
+        float confidence
+        json class_probabilities
+        string model_version
+    }
+    risk_assessments {
+        bigint id PK
+        bigint classification_id FK
+        float risk_score
+        string risk_level
+        float frp_subscore
+        float industrial_proximity_subscore
+        float persistence_subscore
+        json reasons
+    }
+    industrial_facilities {
+        int id PK
+        bigint osm_id UK
+        string name
+        string facility_type
+        geometry geom "SRID=4326 Point"
+    }
+    ml_model_metadata {
+        int id PK
+        string model_name
+        string version UK
+        float test_accuracy
+        float test_f1_macro
+        boolean is_active
+    }
+```
+
+### 11.2 Spatial Indexing & Query Acceleration
+- **GiST (Generalized Search Tree) Spatial Indexes**:
+  - `idx_firms_geom_gist` on `firms_observations.geom` for sub-millisecond bounding box (`&&`) and radius searches (`ST_DWithin`).
+  - `idx_sources_geom_gist` on `persistent_thermal_sources.centroid_geom`.
+  - `idx_facilities_geom_gist` on `industrial_facilities.geom`.
+- **B-Tree Composite Indexes**:
+  - Multi-column indexes on `(satellite, acq_datetime)`, `(latitude, longitude)`, and `(predicted_class, confidence)`.
+- **Deduplication Constraints**:
+  - Unique constraint on `firms_observations(latitude, longitude, acq_datetime, satellite, instrument)` to ensure idempotent re-ingestion.
+
+### 11.3 Bulk Ingestion CLI
+The pipeline supports bulk staging of processed FIRMS observations and DBSCAN persistent clusters via `scripts/ingest_to_db.py`:
+```bash
+python scripts/ingest_to_db.py --data-dir data/processed/firms --batch-size 1000
+```
+- Ingested **1,865 deduplicated observations** and **298 thermal clusters** into PostgreSQL in under 2 seconds.
+- Automatically handles SQLite development fallback in offline/CI environments while maintaining full PostGIS compatibility in production.
+

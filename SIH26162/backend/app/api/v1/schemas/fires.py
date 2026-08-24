@@ -1,8 +1,9 @@
 """
-SIH26162 — Fire Detection & Classification Schemas.
+SIH26162 — Fire Detection, Classification & Observation Schemas.
 """
 
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -20,6 +21,7 @@ class FireClassificationRequest(BaseModel):
     instrument: str = Field("VIIRS", description="Sensor instrument")
     query_osm: bool = Field(True, description="Whether to query OpenStreetMap for industrial proximity")
     osm_radius_m: int = Field(5000, ge=500, le=25000, description="OSM search radius in meters")
+    persist: bool = Field(False, description="Whether to persist classification to database")
 
 
 class RiskBreakdownSchema(BaseModel):
@@ -45,12 +47,14 @@ class FireClassificationResponse(BaseModel):
     persistent_cluster: Optional[Dict[str, Any]] = None
     industrial_context: Optional[Dict[str, Any]] = None
     thermal_parameters: Dict[str, Any]
+    classification_id: Optional[int] = None
 
 
 class BatchClassificationRequest(BaseModel):
     """Batch classification request payload."""
     observations: List[FireClassificationRequest] = Field(..., min_length=1, max_length=500)
     query_osm: bool = Field(False, description="Whether to query OSM for each point in batch")
+    persist: bool = Field(False, description="Whether to persist classifications to database")
 
 
 class BatchClassificationResponse(BaseModel):
@@ -68,3 +72,62 @@ class ModelStatusResponse(BaseModel):
     persistent_clusters_known: int = 0
     model_path: str
     message: Optional[str] = None
+
+
+class FIRMSObservationItem(BaseModel):
+    """Individual FIRMS observation schema for database queries."""
+    id: Optional[int] = None
+    latitude: float
+    longitude: float
+    brightness_primary: float
+    brightness_secondary: Optional[float] = None
+    frp: float
+    confidence_score: float
+    confidence_category: str
+    acq_datetime: datetime
+    satellite: str
+    instrument: str
+    daynight: str
+    scan: float
+    track: float
+    cluster_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PaginatedObservationsResponse(BaseModel):
+    """Paginated response for FIRMS satellite observations."""
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    observations: List[FIRMSObservationItem]
+
+
+class ClassificationRecordItem(BaseModel):
+    """Stored classification record schema."""
+    id: int
+    observation_id: Optional[int] = None
+    latitude: float
+    longitude: float
+    predicted_class: str
+    confidence: float
+    class_probabilities: Dict[str, float]
+    model_version: str
+    risk_score: Optional[float] = None
+    risk_level: Optional[str] = None
+    reasons: Optional[List[str]] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PaginatedClassificationsResponse(BaseModel):
+    """Paginated response for stored classifications."""
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    classifications: List[ClassificationRecordItem]
