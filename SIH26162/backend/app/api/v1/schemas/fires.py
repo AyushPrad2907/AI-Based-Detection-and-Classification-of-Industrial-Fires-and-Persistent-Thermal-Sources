@@ -4,7 +4,7 @@ SIH26162 — Fire Detection, Classification & Observation Schemas.
 
 from typing import Any, Dict, List, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class FireClassificationRequest(BaseModel):
@@ -14,7 +14,13 @@ class FireClassificationRequest(BaseModel):
     brightness_primary: float = Field(325.0, ge=200.0, le=600.0, description="Primary brightness temperature in Kelvin")
     brightness_secondary: Optional[float] = Field(None, ge=200.0, le=600.0, description="Secondary brightness temp in Kelvin")
     frp: float = Field(15.0, ge=0.0, description="Fire Radiative Power in MW")
-    confidence: float = Field(80.0, ge=0.0, le=100.0, description="Detection confidence score (0-100)")
+    confidence: float = Field(
+        80.0,
+        ge=0.0,
+        le=100.0,
+        validation_alias=AliasChoices("confidence", "confidence_score"),
+        description="Detection confidence score (0-100)",
+    )
     daynight: str = Field("D", description="'D' for Daytime or 'N' for Nighttime observation")
     acq_datetime: Optional[str] = Field(None, description="UTC Acquisition datetime (YYYY-MM-DD HH:MM:SS)")
     satellite: str = Field("VIIRS_SNPP_NRT", description="Satellite source name")
