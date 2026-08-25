@@ -9,11 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code and ml module
+COPY backend/app ./app
+COPY ml ./ml
+
+ENV PYTHONPATH=/app
 
 # Expose the API port
 EXPOSE 8000

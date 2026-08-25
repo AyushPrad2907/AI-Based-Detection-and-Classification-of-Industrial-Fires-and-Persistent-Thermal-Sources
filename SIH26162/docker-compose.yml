@@ -33,8 +33,8 @@ services:
   # ---------------------------------------------------------------------------
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: sih26162-backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -42,11 +42,14 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sih26162_user}:${POSTGRES_PASSWORD:-change_me_in_production}@postgres:5432/${POSTGRES_DB:-sih26162_db}
+      PYTHONPATH: /app
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend:/app
+      - ./backend/app:/app/app
+      - ./ml:/app/ml
+      - ./data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # ---------------------------------------------------------------------------
