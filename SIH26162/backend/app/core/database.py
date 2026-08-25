@@ -63,24 +63,20 @@ def create_engine_and_session(
 engine, async_session = create_engine_and_session()
 
 
-async def get_db() -> AsyncGenerator[Optional[AsyncSession], None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency yielding an async database session.
-    Commits upon normal completion; rolls back automatically on error.
-    Gracefully yields None if database connection is offline/unreachable.
+    Commits upon normal completion; rolls back automatically on error;
+    ensures session is closed cleanly upon exit.
     """
-    try:
-        async with async_session() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception as err:
-                await session.rollback()
-                logger.error(f"Database session error (transaction rolled back): {err}")
-                raise
-    except Exception as conn_err:
-        logger.debug(f"Database unreachable ({conn_err}), yielding None for fallback processing.")
-        yield None
+    async with async_session() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception as err:
+            await session.rollback()
+            logger.error(f"Database session error (transaction rolled back): {err}")
+            raise
 
 
 async def init_db(target_engine: Optional[AsyncEngine] = None) -> None:
