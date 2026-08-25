@@ -160,7 +160,7 @@ class OSMService:
 
             if resp.status_code != 200:
                 logger.warning(f"Overpass API returned status {resp.status_code}. Using fallback context.")
-                return self._fallback_context(latitude, longitude, radius_m)
+                return self._fallback_context(latitude, longitude, radius_m, reason=f"service_unavailable_http_{resp.status_code}")
 
             data = resp.json()
             elements = data.get("elements", [])
@@ -202,7 +202,7 @@ class OSMService:
 
         except Exception as err:
             logger.warning(f"OSM Overpass query failed ({err}). Returning safe fallback context.")
-            return self._fallback_context(latitude, longitude, radius_m)
+            return self._fallback_context(latitude, longitude, radius_m, reason="offline_fallback")
 
     def get_industrial_context_sync(
         self,
@@ -232,7 +232,7 @@ class OSMService:
                 resp = client.post(self.overpass_url, data={"data": query})
 
             if resp.status_code != 200:
-                return self._fallback_context(latitude, longitude, radius_m)
+                return self._fallback_context(latitude, longitude, radius_m, reason=f"service_unavailable_http_{resp.status_code}")
 
             data = resp.json()
             elements = data.get("elements", [])
@@ -274,7 +274,7 @@ class OSMService:
 
         except Exception as err:
             logger.warning(f"OSM Overpass sync query failed ({err}). Returning safe fallback context.")
-            return self._fallback_context(latitude, longitude, radius_m)
+            return self._fallback_context(latitude, longitude, radius_m, reason="service_unavailable")
 
     async def get_land_use(self, latitude: float, longitude: float, radius_m: int = 1000) -> Dict[str, Any]:
         """
@@ -282,7 +282,7 @@ class OSMService:
         """
         return await self.get_industrial_context(latitude=latitude, longitude=longitude, radius_m=radius_m)
 
-    def _fallback_context(self, lat: float, lon: float, radius_m: int) -> Dict[str, Any]:
+    def _fallback_context(self, lat: float, lon: float, radius_m: int, reason: str = "offline_fallback") -> Dict[str, Any]:
         """
         Safe fallback context when Overpass API is unreachable or times out.
         """
@@ -297,5 +297,5 @@ class OSMService:
             "query_latitude": lat,
             "query_longitude": lon,
             "search_radius_m": radius_m,
-            "status": "offline_fallback",
+            "status": reason,
         }
