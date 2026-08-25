@@ -24,9 +24,14 @@ logger = logging.getLogger(__name__)
 # Default search radius in meters
 DEFAULT_SEARCH_RADIUS_METERS = 5000
 
+# OSM request timeout: 2s connect + 2.5s read keeps worst-case < 5s
+# The Overpass QL [timeout:8] is only effective if the server is reachable.
+OSM_CONNECT_TIMEOUT = 2.0
+OSM_READ_TIMEOUT = 2.5
+
 # Overpass QL query template for industrial, energy, and hazardous infrastructure
 OVERPASS_INDUSTRIAL_QUERY_TEMPLATE = """
-[out:json][timeout:15];
+[out:json][timeout:8];
 (
   node["landuse"="industrial"](around:{radius},{lat},{lon});
   way["landuse"="industrial"](around:{radius},{lat},{lon});
@@ -46,12 +51,14 @@ out center;
 class OSMService:
     """
     Client for querying OpenStreetMap industrial infrastructure context.
+    Timeout strategy: 2s connect + 2.5s read (total worst-case ≈ 4.5s).
+    Falls back gracefully when Overpass is unreachable.
     """
 
     def __init__(
         self,
         overpass_url: Optional[str] = None,
-        timeout_seconds: float = 12.0,
+        timeout_seconds: float = OSM_READ_TIMEOUT,  # used for sync client
         cache_ttl_seconds: int = 3600,
     ):
         self.overpass_url = (overpass_url or settings.osm_overpass_url or "https://overpass-api.de/api/interpreter").rstrip("/")
@@ -155,11 +162,15 @@ class OSMService:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            _timeout = httpx.Timeout(connect=OSM_CONNECT_TIMEOUT, read=OSM_READ_TIMEOUT, write=5.0, pool=5.0)
+            async with httpx.AsyncClient(timeout=_timeout) as client:
                 resp = await client.post(self.overpass_url, data={"data": query})
 
             if resp.status_code != 200:
-                logger.warning(f"Overpass API returned status {resp.status_code}. Using fallback context.")
+                logger.warning(
+                    f"Overpass API returned HTTP {resp.status_code} for ({latitude:.4f}, {longitude:.4f}). "
+                    "Returning offline fallback."
+                )
                 return self._fallback_context(latitude, longitude, radius_m, reason=f"service_unavailable_http_{resp.status_code}")
 
             data = resp.json()
@@ -200,8 +211,11 @@ class OSMService:
             self._cache[cache_key] = (now, result)
             return result
 
+        except (httpx.ConnectTimeout, httpx.ReadTimeout) as err:
+            logger.warning(f"Overpass timeout for ({latitude:.4f}, {longitude:.4f}): {type(err).__name__}. Returning fallback.")
+            return self._fallback_context(latitude, longitude, radius_m, reason="offline_fallback")
         except Exception as err:
-            logger.warning(f"OSM Overpass query failed ({err}). Returning safe fallback context.")
+            logger.warning(f"OSM Overpass query failed for ({latitude:.4f}, {longitude:.4f}): {type(err).__name__}. Returning fallback.")
             return self._fallback_context(latitude, longitude, radius_m, reason="offline_fallback")
 
     def get_industrial_context_sync(
@@ -228,7 +242,8 @@ class OSMService:
         )
 
         try:
-            with httpx.Client(timeout=self.timeout_seconds) as client:
+            _timeout = httpx.Timeout(connect=OSM_CONNECT_TIMEOUT, read=OSM_READ_TIMEOUT, write=5.0, pool=5.0)
+            with httpx.Client(timeout=_timeout) as client:
                 resp = client.post(self.overpass_url, data={"data": query})
 
             if resp.status_code != 200:

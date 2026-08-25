@@ -7,6 +7,8 @@ import {
   Factory,
   Play,
   RotateCw,
+  ArrowDown,
+  Info,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +47,20 @@ function formatClassName(className?: string) {
   return className
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** Maps OSM fallback status codes to human-readable UI labels. */
+function getOsmStatusLabel(status?: string): { label: string; color: string } {
+  if (!status || status === 'success') {
+    return { label: 'Industrial facilities found', color: 'text-indigo-300' }
+  }
+  if (status === 'no_facilities_found') {
+    return { label: 'No industrial facilities found within 5 km', color: 'text-slate-400' }
+  }
+  if (status.startsWith('offline_fallback') || status.startsWith('service_unavailable') || status.startsWith('service_unavailable_http')) {
+    return { label: 'OSM unavailable — using fallback data', color: 'text-amber-400' }
+  }
+  return { label: status, color: 'text-slate-400' }
 }
 
 export function DetailPanel({
@@ -211,13 +227,20 @@ export function DetailPanel({
         </div>
       )}
 
+      {/* Pipeline Flow Arrow: Telemetry → AI */}
+      {isObservation && (
+        <div className="flex justify-center">
+          <ArrowDown className="size-4 text-slate-600" />
+        </div>
+      )}
+
       {/* AI Classification & Probabilities */}
       <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Cpu className="size-4 text-cyan-400" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-              AI Classification Engine
+              AI Classification
             </h3>
           </div>
           {classification && (
@@ -227,10 +250,16 @@ export function DetailPanel({
           )}
         </div>
 
+        {/* Disclaimer */}
+        <div className="flex items-start gap-1.5 text-[10px] text-slate-500 bg-slate-900/40 px-2 py-1.5 rounded border border-slate-800/50">
+          <Info className="size-3 shrink-0 mt-0.5" />
+          <span>Random Forest model prediction (29 features, 150 estimators). Not a human expert assessment.</span>
+        </div>
+
         {isInferencing ? (
           <div className="py-4 flex flex-col items-center justify-center gap-2 text-slate-400">
             <RotateCw className="size-5 text-amber-500 animate-spin" />
-            <span className="text-xs">Running Random Forest Classifier & Feature Engineering...</span>
+            <span className="text-xs">Running Random Forest Classifier &amp; Feature Engineering...</span>
           </div>
         ) : classification ? (
           <div className="space-y-3">
@@ -275,6 +304,13 @@ export function DetailPanel({
         )}
       </div>
 
+      {/* Pipeline Flow Arrow: AI → Risk */}
+      {classification && (
+        <div className="flex justify-center">
+          <ArrowDown className="size-4 text-slate-600" />
+        </div>
+      )}
+
       {/* Explainable Multi-Factor Risk Assessment */}
       {classification && (
         <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
@@ -282,44 +318,71 @@ export function DetailPanel({
             <div className="flex items-center gap-2">
               <Shield className="size-4 text-rose-400" />
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                Explainable Risk Assessment
+                Risk Assessment
               </h3>
             </div>
             <Badge variant="outline" className={`text-[10px] font-mono font-bold ${riskBadge.bg}`}>
-              {riskBadge.label} ({classification.risk_score.toFixed(1)}/100)
+              {riskBadge.label}
             </Badge>
           </div>
 
-          {/* Subscores Grid */}
+          {/* Disclaimer */}
+          <div className="flex items-start gap-1.5 text-[10px] text-slate-500 bg-slate-900/40 px-2 py-1.5 rounded border border-slate-800/50">
+            <Info className="size-3 shrink-0 mt-0.5" />
+            <span>Explainable composite risk score (0–100) from 5 weighted factors. Not an emergency alert system.</span>
+          </div>
+
+          {/* Risk Score Gauge */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Composite Risk Score</span>
+              <span className={`font-mono font-bold ${riskBadge.bg.split(' ')[1]}`}>
+                {classification.risk_score.toFixed(1)} / 100
+              </span>
+            </div>
+            <div className="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  classification.risk_score >= 75 ? 'bg-rose-500' :
+                  classification.risk_score >= 55 ? 'bg-orange-500' :
+                  classification.risk_score >= 35 ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.min(classification.risk_score, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Subscores as Percentage Bars */}
           {classification.risk_breakdown && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 text-[10px]">FRP Subscore:</span>
-                <div className="font-mono text-amber-400 font-bold">{classification.risk_breakdown.frp_subscore.toFixed(1)} / 30</div>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 text-[10px]">Proximity Subscore:</span>
-                <div className="font-mono text-cyan-400 font-bold">{classification.risk_breakdown.industrial_proximity_subscore.toFixed(1)} / 25</div>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 text-[10px]">Persistence Subscore:</span>
-                <div className="font-mono text-purple-400 font-bold">{classification.risk_breakdown.persistence_subscore.toFixed(1)} / 20</div>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 text-[10px]">Confidence Subscore:</span>
-                <div className="font-mono text-emerald-400 font-bold">{classification.risk_breakdown.confidence_subscore.toFixed(1)} / 15</div>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
-                <span className="text-slate-400 text-[10px]">Nocturnal Subscore:</span>
-                <div className="font-mono text-blue-400 font-bold">{classification.risk_breakdown.nocturnal_subscore.toFixed(1)} / 10</div>
-              </div>
+            <div className="space-y-2 pt-1">
+              <div className="text-[11px] font-medium text-slate-400">Risk Factor Breakdown:</div>
+              {[
+                { label: 'Fire Radiative Power', val: classification.risk_breakdown.frp_subscore, max: 30, color: 'bg-amber-500' },
+                { label: 'Industrial Proximity', val: classification.risk_breakdown.industrial_proximity_subscore, max: 25, color: 'bg-cyan-500' },
+                { label: 'Source Persistence', val: classification.risk_breakdown.persistence_subscore, max: 20, color: 'bg-purple-500' },
+                { label: 'Detection Confidence', val: classification.risk_breakdown.confidence_subscore, max: 15, color: 'bg-emerald-500' },
+                { label: 'Nocturnal Activity', val: classification.risk_breakdown.nocturnal_subscore, max: 10, color: 'bg-blue-500' },
+              ].map(({ label, val, max, color }) => (
+                <div key={label} className="space-y-0.5">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-slate-400">{label}</span>
+                    <span className="font-mono text-slate-300">{val.toFixed(1)} / {max}</span>
+                  </div>
+                  <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${color}`}
+                      style={{ width: `${Math.min((val / max) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Explainable Reasons */}
+          {/* WHY? — Explainable Reasons */}
           {classification.reasons && classification.reasons.length > 0 && (
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[11px] font-medium text-slate-400">Risk Factors & Logic:</span>
+            <div className="space-y-1.5 pt-1 border-t border-slate-800/60">
+              <span className="text-[11px] font-semibold text-slate-300">WHY this score?</span>
               <ul className="space-y-1">
                 {classification.reasons.map((reason, idx) => (
                   <li key={idx} className="text-xs text-slate-300 flex items-start gap-1.5">
@@ -354,8 +417,20 @@ export function DetailPanel({
           </Button>
         </div>
 
-        {industrialContext ? (
+        {isQueryingOSM ? (
+          <div className="py-3 flex items-center justify-center gap-2 text-xs text-slate-400 font-mono">
+            <RotateCw className="size-3.5 text-indigo-400 animate-spin" />
+            <span>Querying Overpass API (radius: 5 km)...</span>
+          </div>
+        ) : industrialContext ? (
           <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between bg-slate-900/90 p-2 rounded border border-slate-800">
+              <span className="text-slate-400">Status:</span>
+              <span className={`font-medium ${getOsmStatusLabel(industrialContext.status).color}`}>
+                {getOsmStatusLabel(industrialContext.status).label}
+              </span>
+            </div>
+
             <div className="flex items-center justify-between bg-slate-900/90 p-2 rounded border border-slate-800">
               <span className="text-slate-400">Industrial Facility Nearby:</span>
               <Badge

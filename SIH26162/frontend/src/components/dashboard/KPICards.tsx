@@ -44,30 +44,30 @@ export function KPICards({
 
   const stats = [
     {
-      title: 'Active Thermal Detections',
+      title: 'Raw Thermal Detections',
       value: loading ? '...' : totalObs.toLocaleString(),
-      sub: `${observations.length} loaded in viewport`,
+      sub: `${observations.length} loaded in viewport • NASA FIRMS / PostGIS`,
       icon: Flame,
       color: 'text-amber-500',
-      badge: isDatabaseConnected ? 'NASA FIRMS PostGIS' : 'NASA FIRMS Engine',
+      badge: isDatabaseConnected ? 'FIRMS Telemetry' : 'Offline Buffer',
       badgeColor: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
     },
     {
       title: 'Persistent Thermal Clusters',
       value: loading ? '...' : totalClust.toLocaleString(),
-      sub: `${clusters.filter((c) => c.is_persistent).length} validated industrial sources`,
+      sub: `${clusters.filter((c) => c.is_persistent).length} DBSCAN spatial clusters`,
       icon: Cpu,
       color: 'text-cyan-400',
       badge: 'DBSCAN PostGIS',
       badgeColor: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
     },
     {
-      title: 'High & Critical Risk Anomaly',
+      title: 'High & Critical Risk Anomalies',
       value: loading ? '...' : highRiskCount.toString(),
-      sub: `${classifications.length} AI classified records`,
+      sub: `${classifications.length} AI classified records evaluated`,
       icon: ShieldAlert,
       color: 'text-rose-500',
-      badge: highRiskCount > 0 ? 'Action Required' : 'Nominal',
+      badge: highRiskCount > 0 ? 'Elevated Risk' : 'Nominal',
       badgeColor:
         highRiskCount > 0
           ? 'border-rose-500/30 text-rose-400 bg-rose-500/10'

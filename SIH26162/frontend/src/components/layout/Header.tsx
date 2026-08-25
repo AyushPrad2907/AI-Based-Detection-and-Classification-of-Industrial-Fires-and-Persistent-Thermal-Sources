@@ -1,11 +1,33 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Flame, Activity, LayoutDashboard } from 'lucide-react'
+import { Flame, Activity, LayoutDashboard, Moon, Sun } from 'lucide-react'
 import { useApiHealth } from '@/hooks/useApi'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 export function Header() {
   const location = useLocation()
   const { health, loading } = useApiHealth()
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    return localStorage.getItem('sih_theme') !== 'light'
+  })
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (isDark) {
+      root.classList.remove('light')
+      root.classList.add('dark')
+      document.body.classList.remove('light-theme')
+      localStorage.setItem('sih_theme', 'dark')
+    } else {
+      root.classList.remove('dark')
+      root.classList.add('light')
+      document.body.classList.add('light-theme')
+      localStorage.setItem('sih_theme', 'light')
+    }
+  }, [isDark])
+
+  const toggleTheme = () => setIsDark((prev) => !prev)
 
   const navLinks = [
     { name: 'Home', path: '/', icon: Flame },
@@ -49,8 +71,20 @@ export function Header() {
           })}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs border border-slate-800 rounded-full px-3 py-1 bg-slate-900/60">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Theme Toggle Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="h-8 w-8 p-0 rounded-full border border-slate-800 bg-slate-900/60 text-slate-300 hover:text-amber-400 hover:bg-slate-800"
+            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle theme"
+          >
+            {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-indigo-400" />}
+          </Button>
+
+          <div className="hidden md:flex items-center gap-2 text-xs border border-slate-800 rounded-full px-3 py-1 bg-slate-900/60">
             <Activity className="size-3 text-amber-500" />
             <span className="text-slate-400">Backend:</span>
             {loading ? (

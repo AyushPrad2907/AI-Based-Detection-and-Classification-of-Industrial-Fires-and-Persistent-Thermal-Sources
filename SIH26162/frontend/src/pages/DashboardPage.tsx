@@ -9,8 +9,11 @@ import {
   RefreshCw,
   AlertCircle,
   Radio,
+  FlaskConical,
+  Satellite,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { KPICards } from '@/components/dashboard/KPICards'
 import { FilterBar } from '@/components/dashboard/FilterBar'
 import { CommandCenterMap } from '@/components/dashboard/CommandCenterMap'
@@ -27,6 +30,102 @@ import type {
   DashboardFilterState,
   DatabaseHealth,
 } from '@/types'
+
+// ---------------------------------------------------------------------------
+// Demo Scenario Configuration (Objective 5 — real DB-backed observations)
+// All IDs and values verified against live PostGIS database.
+// ---------------------------------------------------------------------------
+export const DEMO_SCENARIOS = [
+  {
+    id: 'A',
+    label: 'Persistent Industrial Source',
+    description: 'Cluster 72 — nocturnal, high-confidence, Haryana industrial belt',
+    obsId: 3028,
+    latitude: 29.45829,
+    longitude: 76.86964,
+    frp: 15.72,
+    confidence: 98,
+    brightness_primary: 319.27,
+    brightness_secondary: 296.1,
+    daynight: 'N',
+    satellite: 'TERRA',
+    instrument: 'MODIS',
+    cluster_id: 72,
+    acq_datetime: '2024-01-15T20:45:00Z',
+  },
+  {
+    id: 'B',
+    label: 'Low-Risk Anomaly',
+    description: 'Low FRP / Low confidence / Daytime transient — likely agricultural',
+    obsId: 2951,
+    latitude: 29.703,
+    longitude: 68.51967,
+    frp: 1.34,
+    confidence: 30,
+    brightness_primary: 310.0,
+    brightness_secondary: 295.0,
+    daynight: 'D',
+    satellite: 'N20',
+    instrument: 'VIIRS',
+    cluster_id: null,
+    acq_datetime: '2024-01-15T10:15:00Z',
+  },
+  {
+    id: 'C',
+    label: 'High-Risk Thermal Event',
+    description: 'FRP 97 MW / 100% confidence — Sri Lanka industrial fire',
+    obsId: 1884,
+    latitude: 6.62644,
+    longitude: 81.2471,
+    frp: 97.24,
+    confidence: 100,
+    brightness_primary: 365.07,
+    brightness_secondary: 296.24,
+    daynight: 'D',
+    satellite: 'TERRA',
+    instrument: 'MODIS',
+    cluster_id: null,
+    acq_datetime: '2024-01-15T07:20:00Z',
+  },
+  {
+    id: 'D',
+    label: 'Wildfire / Agricultural Burn',
+    description: 'Goa coastal belt — 135 MW, moderate-confidence daytime detection',
+    obsId: 2611,
+    latitude: 15.77281,
+    longitude: 73.70358,
+    frp: 135.46,
+    confidence: 30,
+    brightness_primary: 337.78,
+    brightness_secondary: 295.82,
+    daynight: 'D',
+    satellite: 'N20',
+    instrument: 'VIIRS',
+    cluster_id: null,
+    acq_datetime: '2024-01-15T08:00:00Z',
+  },
+] as const
+
+/** Convert a DEMO_SCENARIO into a synthetic FIRMSObservation for selection. */
+function scenarioToObservation(s: (typeof DEMO_SCENARIOS)[number]): FIRMSObservation {
+  return {
+    id: s.obsId,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    brightness_primary: s.brightness_primary,
+    brightness_secondary: s.brightness_secondary,
+    frp: s.frp,
+    confidence_score: s.confidence,
+    confidence_category: s.confidence >= 80 ? 'high' : s.confidence >= 50 ? 'nominal' : 'low',
+    acq_datetime: s.acq_datetime,
+    satellite: s.satellite,
+    instrument: s.instrument,
+    daynight: s.daynight,
+    scan: 0.375,
+    track: 0.375,
+    cluster_id: s.cluster_id ?? null,
+  }
+}
 
 export function DashboardPage() {
   // Primary Data State
@@ -60,6 +159,17 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [isOffline, setIsOffline] = useState<boolean>(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date())
+
+  // Demo Mode State (Objective 4 — does NOT modify the production database)
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false)
+  const [activeDemoScenario, setActiveDemoScenario] = useState<number>(0)
+
+  // Demo mode: load scenario directly from real DB observation or synthetic entity
+  const activateDemo = (scenarioIndex: number) => {
+    const s = DEMO_SCENARIOS[scenarioIndex]
+    setActiveDemoScenario(scenarioIndex)
+    setSelectedEntity({ type: 'observation', data: scenarioToObservation(s) })
+  }
 
   // Fetch real data from backend APIs
   const loadDashboardData = useCallback(async () => {
@@ -134,13 +244,19 @@ export function DashboardPage() {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-100 flex items-center gap-2">
               <span>Command Center</span>
-              <span className="text-amber-500 font-mono text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
-                PHASE 4 PRODUCTION
-              </span>
+              {isDemoMode ? (
+                <span className="text-purple-400 font-mono text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 animate-pulse">
+                  ⚗ DEMO MODE
+                </span>
+              ) : (
+                <span className="text-emerald-400 font-mono text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
+                  LIVE
+                </span>
+              )}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
-            <span>Real-time Thermal Anomaly & Persistent Industrial Fire Detection System</span>
+            <span>Near-Real-Time Thermal Anomaly &amp; Persistent Industrial Fire Detection System</span>
             <span className="text-slate-600">•</span>
             <span className="text-slate-400 font-mono text-xs">
               Updated {lastRefreshed.toLocaleTimeString()}
@@ -150,12 +266,43 @@ export function DashboardPage() {
 
         {/* Action Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Data Source Badge: Real Data */}
+          {/* Live / Demo Mode Toggle */}
+          <button
+            onClick={() => {
+              const nextDemo = !isDemoMode
+              setIsDemoMode(nextDemo)
+              if (nextDemo) {
+                activateDemo(0) // Default to Scenario A on entering demo
+              } else {
+                setSelectedEntity(null) // Clear selection on exiting demo
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+              isDemoMode
+                ? 'bg-purple-900/30 border-purple-500/40 text-purple-300 hover:bg-purple-900/50'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+            title={isDemoMode ? 'Switch to Live Mode' : 'Switch to Demo Mode — controlled SIH presentation'}
+          >
+            {isDemoMode ? (
+              <>
+                <Satellite className="size-3 text-emerald-400" />
+                <span className="text-emerald-400 font-bold">Switch to LIVE</span>
+              </>
+            ) : (
+              <>
+                <FlaskConical className="size-3 text-purple-400" />
+                <span className="text-purple-400 font-bold">DEMO MODE</span>
+              </>
+            )}
+          </button>
+
+          {/* Data Source Badge */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300">
             <Radio className="size-3 text-emerald-400 animate-pulse" />
-            <span className="text-emerald-400 font-bold">LIVE TELEMETRY</span>
+            <span className="text-emerald-400 font-bold">NASA FIRMS</span>
             <span className="text-slate-500">|</span>
-            <span className="text-slate-400">PostGIS + FIRMS</span>
+            <span className="text-slate-400">PostGIS + AI</span>
           </div>
 
           {/* System Diagnostics Trigger */}
@@ -255,7 +402,40 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Real-time KPI Telemetry Cards */}
+      {/* Demo Mode Banner & Scenario Selector */}
+      {isDemoMode && (
+        <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="size-4 text-purple-400" />
+              <span className="text-sm font-bold text-purple-300">SIH DEMO MODE — Controlled Presentation Scenarios</span>
+              <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-400 bg-purple-500/10">
+                Real DB Records
+              </Badge>
+            </div>
+            <span className="text-[11px] text-purple-400/70 font-mono">Production data is read-only. No records are modified.</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {DEMO_SCENARIOS.map((s, idx) => (
+              <button
+                key={s.id}
+                onClick={() => activateDemo(idx)}
+                className={`text-left p-2.5 rounded-lg border text-xs transition-all ${
+                  activeDemoScenario === idx
+                    ? 'bg-purple-600/20 border-purple-500/60 text-purple-200'
+                    : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-purple-500/40 hover:text-slate-200'
+                }`}
+              >
+                <div className="font-bold text-[10px] font-mono mb-0.5 text-purple-400">Scenario {s.id}</div>
+                <div className="font-semibold text-slate-200 leading-tight">{s.label}</div>
+                <div className="text-[10px] text-slate-500 mt-1 leading-tight">{s.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Near-Real-Time KPI Telemetry Cards */}
       <KPICards
         observations={observations}
         clusters={clusters}

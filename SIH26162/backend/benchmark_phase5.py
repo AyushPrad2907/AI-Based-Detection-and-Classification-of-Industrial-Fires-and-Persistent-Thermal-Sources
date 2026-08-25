@@ -81,7 +81,7 @@ def run_endpoint_benchmark(
         "throughput_rps": round(throughput, 1),
     }
     
-    print(f"  [✓] Avg: {res['avg_ms']} ms | p50: {res['p50_ms']} ms | p95: {res['p95_ms']} ms | p99: {res['p99_ms']} ms | {res['throughput_rps']} req/s")
+    print(f"  [OK] Avg: {res['avg_ms']} ms | p50: {res['p50_ms']} ms | p95: {res['p95_ms']} ms | p99: {res['p99_ms']} ms | {res['throughput_rps']} req/s")
     return res
 
 def main():
