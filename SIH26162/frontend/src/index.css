@@ -58,6 +58,7 @@ body {
 }
 
 html.light,
+html[data-theme='light'],
 html.light body,
 body.light-theme {
   background-color: #f8fafc !important;
@@ -65,63 +66,149 @@ body.light-theme {
 }
 
 /* Light theme overrides for hardcoded dark background and border utilities */
+html.light div[class*="bg-slate-950"],
+html[data-theme='light'] div[class*="bg-slate-950"],
+html.light main,
+html[data-theme='light'] main,
 html.light .bg-slate-950,
 html.light .bg-slate-950\/80,
 html.light .bg-slate-950\/60,
-html.light .bg-slate-950\/90 {
-  background-color: #ffffff !important;
+html.light .bg-slate-950\/90,
+html[data-theme='light'] .bg-slate-950,
+html[data-theme='light'] .bg-slate-950\/80,
+html[data-theme='light'] .bg-slate-950\/60,
+html[data-theme='light'] .bg-slate-950\/90 {
+  background-color: #f8fafc !important;
 }
 
 html.light .bg-slate-900,
 html.light .bg-slate-900\/60,
 html.light .bg-slate-900\/70,
 html.light .bg-slate-900\/80,
-html.light .bg-slate-900\/90 {
+html.light .bg-slate-900\/90,
+html[data-theme='light'] .bg-slate-900,
+html[data-theme='light'] .bg-slate-900\/60,
+html[data-theme='light'] .bg-slate-900\/70,
+html[data-theme='light'] .bg-slate-900\/80,
+html[data-theme='light'] .bg-slate-900\/90 {
   background-color: #ffffff !important;
 }
 
 html.light .bg-slate-800,
 html.light .bg-slate-800\/60,
 html.light .bg-slate-800\/80,
-html.light .bg-slate-800\/90 {
+html.light .bg-slate-800\/90,
+html[data-theme='light'] .bg-slate-800,
+html[data-theme='light'] .bg-slate-800\/60,
+html[data-theme='light'] .bg-slate-800\/80,
+html[data-theme='light'] .bg-slate-800\/90 {
   background-color: #f1f5f9 !important;
 }
 
 html.light .border-slate-800,
 html.light .border-slate-800\/80,
 html.light .border-slate-700,
-html.light .border-slate-700\/50 {
+html.light .border-slate-700\/50,
+html[data-theme='light'] .border-slate-800,
+html[data-theme='light'] .border-slate-800\/80,
+html[data-theme='light'] .border-slate-700,
+html[data-theme='light'] .border-slate-700\/50 {
   border-color: #e2e8f0 !important;
 }
 
 html.light .text-slate-100,
-html.light .text-slate-200 {
+html.light .text-slate-200,
+html[data-theme='light'] .text-slate-100,
+html[data-theme='light'] .text-slate-200 {
   color: #0f172a !important;
 }
 
 html.light .text-slate-300,
-html.light .text-slate-400 {
+html.light .text-slate-400,
+html[data-theme='light'] .text-slate-300,
+html[data-theme='light'] .text-slate-400 {
   color: #475569 !important;
 }
 
-html.light .text-slate-500 {
+html.light .text-slate-500,
+html[data-theme='light'] .text-slate-500 {
   color: #64748b !important;
 }
 
-html.light header {
-  background-color: rgba(255, 255, 255, 0.85) !important;
+html.light header,
+html[data-theme='light'] header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
   border-color: #e2e8f0 !important;
 }
 
-html.light footer {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-}
-
-html.light .rounded-xl.border {
+html.light footer,
+html[data-theme='light'] footer {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .rounded-xl,
+html.light .rounded-lg,
+html[data-theme='light'] .rounded-xl,
+html[data-theme='light'] .rounded-lg {
+  border-color: #e2e8f0;
+}
+
+/* Light Theme Card, Table, Detail Panel, and Input Overrides */
+html.light table,
+html[data-theme='light'] table {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light tr.border-b,
+html[data-theme='light'] tr.border-b,
+html.light th,
+html[data-theme='light'] th,
+html.light td,
+html[data-theme='light'] td {
+  border-color: #f1f5f9 !important;
+}
+
+html.light th,
+html[data-theme='light'] th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+}
+
+html.light tbody tr:hover,
+html[data-theme='light'] tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+html.light select,
+html.light input,
+html[data-theme='light'] select,
+html[data-theme='light'] input {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light button.bg-slate-800,
+html[data-theme='light'] button.bg-slate-800,
+html.light button.bg-slate-900,
+html[data-theme='light'] button.bg-slate-900 {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light button.bg-slate-800:hover,
+html[data-theme='light'] button.bg-slate-800:hover,
+html.light button.bg-slate-900:hover,
+html[data-theme='light'] button.bg-slate-900:hover {
+  background-color: #e2e8f0 !important;
+}
+
+html.light .shadow-2xl,
+html[data-theme='light'] .shadow-2xl {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Custom Leaflet Map styling for Command Center Dark Theme */

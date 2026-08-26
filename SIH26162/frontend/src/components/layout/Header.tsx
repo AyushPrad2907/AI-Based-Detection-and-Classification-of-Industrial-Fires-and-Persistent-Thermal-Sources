@@ -17,11 +17,15 @@ export function Header() {
     if (isDark) {
       root.classList.remove('light')
       root.classList.add('dark')
+      root.setAttribute('data-theme', 'dark')
       document.body.classList.remove('light-theme')
+      document.body.classList.add('dark-theme')
       localStorage.setItem('sih_theme', 'dark')
     } else {
       root.classList.remove('dark')
       root.classList.add('light')
+      root.setAttribute('data-theme', 'light')
+      document.body.classList.remove('dark-theme')
       document.body.classList.add('light-theme')
       localStorage.setItem('sih_theme', 'light')
     }
