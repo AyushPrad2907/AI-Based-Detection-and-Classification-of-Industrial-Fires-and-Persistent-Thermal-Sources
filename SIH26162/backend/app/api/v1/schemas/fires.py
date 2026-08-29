@@ -4,11 +4,13 @@ SIH26162 — Fire Detection, Classification & Observation Schemas.
 
 from typing import Any, Dict, List, Optional
 from datetime import datetime
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class FireClassificationRequest(BaseModel):
     """Request payload for thermal anomaly classification."""
+    model_config = ConfigDict(protected_namespaces=())
+
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in decimal degrees")
     longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude in decimal degrees")
     brightness_primary: float = Field(325.0, ge=200.0, le=600.0, description="Primary brightness temperature in Kelvin")
@@ -31,6 +33,8 @@ class FireClassificationRequest(BaseModel):
 
 
 class RiskBreakdownSchema(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     frp_subscore: float
     industrial_proximity_subscore: float
     persistence_subscore: float
@@ -40,6 +44,8 @@ class RiskBreakdownSchema(BaseModel):
 
 class FireClassificationResponse(BaseModel):
     """Response payload for thermal anomaly classification."""
+    model_config = ConfigDict(protected_namespaces=())
+
     latitude: float
     longitude: float
     predicted_class: str
@@ -58,6 +64,8 @@ class FireClassificationResponse(BaseModel):
 
 class BatchClassificationRequest(BaseModel):
     """Batch classification request payload."""
+    model_config = ConfigDict(protected_namespaces=())
+
     observations: List[FireClassificationRequest] = Field(..., min_length=1, max_length=500)
     query_osm: bool = Field(False, description="Whether to query OSM for each point in batch")
     persist: bool = Field(False, description="Whether to persist classifications to database")
@@ -65,12 +73,16 @@ class BatchClassificationRequest(BaseModel):
 
 class BatchClassificationResponse(BaseModel):
     """Batch classification response."""
+    model_config = ConfigDict(protected_namespaces=())
+
     total_processed: int
     results: List[FireClassificationResponse]
 
 
 class ModelStatusResponse(BaseModel):
     """ML model operational status and metadata."""
+    model_config = ConfigDict(protected_namespaces=())
+
     ready: bool
     model_type: Optional[str] = None
     classes: List[str] = []
@@ -82,6 +94,8 @@ class ModelStatusResponse(BaseModel):
 
 class FIRMSObservationItem(BaseModel):
     """Individual FIRMS observation schema for database queries."""
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: Optional[int] = None
     latitude: float
     longitude: float
@@ -98,12 +112,11 @@ class FIRMSObservationItem(BaseModel):
     track: float
     cluster_id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
-
 
 class PaginatedObservationsResponse(BaseModel):
     """Paginated response for FIRMS satellite observations."""
+    model_config = ConfigDict(protected_namespaces=())
+
     total: int
     page: int
     limit: int
@@ -113,6 +126,8 @@ class PaginatedObservationsResponse(BaseModel):
 
 class ClassificationRecordItem(BaseModel):
     """Stored classification record schema."""
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: int
     observation_id: Optional[int] = None
     latitude: float
@@ -126,12 +141,11 @@ class ClassificationRecordItem(BaseModel):
     reasons: Optional[List[str]] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class PaginatedClassificationsResponse(BaseModel):
     """Paginated response for stored classifications."""
+    model_config = ConfigDict(protected_namespaces=())
+
     total: int
     page: int
     limit: int
