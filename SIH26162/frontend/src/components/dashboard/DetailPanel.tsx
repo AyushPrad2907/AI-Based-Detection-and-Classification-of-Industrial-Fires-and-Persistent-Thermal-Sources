@@ -170,15 +170,28 @@ export function DetailPanel({
                 Lat: {lat.toFixed(5)}° | Lon: {lon.toFixed(5)}°
               </p>
               {isObservation && obs && (
-                <a
-                  href={`https://apps.sentinel-hub.com/eo-browser/?zoom=14&lat=${lat}&lng=${lon}&themeId=DEFAULT-THEME&toTime=${new Date(obs.acq_datetime).toISOString().split('T')[0]}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 rounded hover:bg-cyan-500/20 transition-colors"
-                >
-                  <ExternalLink className="size-3" />
-                  Sentinel-2 View
-                </a>
+                <div className="flex items-center gap-1">
+                  <a
+                    href={`https://browser.dataspace.copernicus.eu/?zoom=14&lat=${lat}&lng=${lon}&date=${new Date(obs.acq_datetime).toISOString().split('T')[0]}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 rounded hover:bg-cyan-500/20 transition-colors"
+                    title="Open Copernicus Sentinel-2 Optical Browser"
+                  >
+                    <ExternalLink className="size-3" />
+                    Sentinel-2
+                  </a>
+                  <a
+                    href={`https://www.google.com/maps/@${lat},${lon},16z/data=!3m1!1e3`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded hover:bg-emerald-500/20 transition-colors"
+                    title="Open High-Res Satellite Ground View"
+                  >
+                    <ExternalLink className="size-3" />
+                    HD Satellite
+                  </a>
+                </div>
               )}
             </div>
           </div>
