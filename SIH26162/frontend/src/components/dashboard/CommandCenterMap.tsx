@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import {
   Layers,
@@ -37,7 +37,7 @@ function getObservationColor(obs: FIRMSObservation): string {
   return '#eab308' // Yellow - Low FRP
 }
 
-export function CommandCenterMap({
+function CommandCenterMapInner({
   observations,
   clusters,
   facilities = [],
@@ -77,14 +77,13 @@ export function CommandCenterMap({
       maxZoom: 18,
     })
 
-    // CartoDB Dark Matter Basemap (Open Source / No Key Required)
+    // Esri World Dark Gray Base (Open Source / No Key Required)
     const darkTile = L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
       {
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
+          '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ, NOAA, USGS',
+        maxZoom: 16,
       }
     ).addTo(map)
 
@@ -124,11 +123,10 @@ export function CommandCenterMap({
 
     if (activeTileLayer === 'dark') {
       tileLayerRef.current = L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
         {
-          attribution: '&copy; OpenStreetMap &copy; CARTO',
-          subdomains: 'abcd',
-          maxZoom: 19,
+          attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+          maxZoom: 16,
         }
       ).addTo(mapRef.current)
     } else {
@@ -156,7 +154,7 @@ export function CommandCenterMap({
 
       // Custom SVG Marker DivIcon
       const iconHtml = `
-        <div class="relative flex items-center justify-center cursor-pointer group" style="width: 22px; height: 22px;">
+        <div class="relative flex items-center justify-center cursor-pointer group" style="width: 22px; height: 22px;" role="button" tabindex="0" aria-label="Fire detection marker">
           ${isHighPower ? `<div class="marker-pulse" style="background-color: ${color}40; border: 1px solid ${color};"></div>` : ''}
           <div class="w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-slate-950 transition-transform group-hover:scale-125 shadow-lg"
                style="background-color: ${color}; box-shadow: 0 0 8px ${color}aa;">
@@ -485,3 +483,5 @@ export function CommandCenterMap({
     </div>
   )
 }
+
+export const CommandCenterMap = React.memo(CommandCenterMapInner)

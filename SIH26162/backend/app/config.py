@@ -53,8 +53,10 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     backend_port: int = 8000
     frontend_port: int = 5173
+    frontend_url: str = "http://localhost:5173"
     environment: str = "development"
     debug: bool = True
+    api_key: str = ""
 
 
 

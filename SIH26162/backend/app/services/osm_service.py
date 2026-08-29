@@ -29,6 +29,13 @@ DEFAULT_SEARCH_RADIUS_METERS = 5000
 OSM_CONNECT_TIMEOUT = 2.0
 OSM_READ_TIMEOUT = 2.5
 
+# Public Overpass API mirrors for automatic failover
+OVERPASS_FALLBACK_URLS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+]
+
 # Overpass QL query template for industrial, energy, and hazardous infrastructure
 OVERPASS_INDUSTRIAL_QUERY_TEMPLATE = """
 [out:json][timeout:8];
@@ -52,7 +59,7 @@ class OSMService:
     """
     Client for querying OpenStreetMap industrial infrastructure context.
     Timeout strategy: 2s connect + 2.5s read (total worst-case ≈ 4.5s).
-    Falls back gracefully when Overpass is unreachable.
+    Falls back gracefully to alternative Overpass mirrors or offline fallback when unreachable.
     """
 
     def __init__(
@@ -61,7 +68,11 @@ class OSMService:
         timeout_seconds: float = OSM_READ_TIMEOUT,  # used for sync client
         cache_ttl_seconds: int = 3600,
     ):
-        self.overpass_url = (overpass_url or settings.osm_overpass_url or "https://overpass-api.de/api/interpreter").rstrip("/")
+        primary_url = (overpass_url or settings.osm_overpass_url or "https://overpass-api.de/api/interpreter").rstrip("/")
+        self.overpass_url = primary_url
+        # Multi-mirror list with primary endpoint first
+        fallback_urls = [url.rstrip("/") for url in OVERPASS_FALLBACK_URLS if url.rstrip("/") != primary_url]
+        self.overpass_urls = [primary_url] + fallback_urls
         self.timeout_seconds = timeout_seconds
         self.cache_ttl_seconds = cache_ttl_seconds
         # In-memory spatial cache: key -> (timestamp, result_dict)
@@ -161,62 +172,65 @@ class OSMService:
             lon=longitude,
         )
 
-        try:
-            _timeout = httpx.Timeout(connect=OSM_CONNECT_TIMEOUT, read=OSM_READ_TIMEOUT, write=5.0, pool=5.0)
-            async with httpx.AsyncClient(timeout=_timeout) as client:
-                resp = await client.post(self.overpass_url, data={"data": query})
+        last_status_code = None
+        _timeout = httpx.Timeout(connect=OSM_CONNECT_TIMEOUT, read=OSM_READ_TIMEOUT, write=5.0, pool=5.0)
 
-            if resp.status_code != 200:
-                logger.warning(
-                    f"Overpass API returned HTTP {resp.status_code} for ({latitude:.4f}, {longitude:.4f}). "
-                    "Returning offline fallback."
-                )
-                return self._fallback_context(latitude, longitude, radius_m, reason=f"service_unavailable_http_{resp.status_code}")
+        for target_url in self.overpass_urls:
+            try:
+                async with httpx.AsyncClient(timeout=_timeout) as client:
+                    resp = await client.post(target_url, data={"data": query})
 
-            data = resp.json()
-            elements = data.get("elements", [])
-            facilities = self._parse_overpass_elements(elements, latitude, longitude)
+                if resp.status_code != 200:
+                    last_status_code = resp.status_code
+                    logger.warning(f"Overpass mirror {target_url} returned HTTP {resp.status_code}. Trying next mirror...")
+                    continue
 
-            if facilities:
-                nearest = facilities[0]
-                min_dist = nearest["distance_meters"]
-                result = {
-                    "is_industrial_nearby": min_dist <= 2000.0,
-                    "min_distance_m": min_dist,
-                    "min_distance_km": round(min_dist / 1000.0, 3),
-                    "nearest_facility_name": nearest["name"],
-                    "nearest_facility_type": nearest["facility_type"],
-                    "total_facilities_in_radius": len(facilities),
-                    "facilities": facilities[:10],
-                    "query_latitude": latitude,
-                    "query_longitude": longitude,
-                    "search_radius_m": radius_m,
-                    "status": "success",
-                }
-            else:
-                result = {
-                    "is_industrial_nearby": False,
-                    "min_distance_m": float(radius_m),
-                    "min_distance_km": round(float(radius_m) / 1000.0, 3),
-                    "nearest_facility_name": None,
-                    "nearest_facility_type": None,
-                    "total_facilities_in_radius": 0,
-                    "facilities": [],
-                    "query_latitude": latitude,
-                    "query_longitude": longitude,
-                    "search_radius_m": radius_m,
-                    "status": "no_facilities_found",
-                }
+                data = resp.json()
+                elements = data.get("elements", [])
+                facilities = self._parse_overpass_elements(elements, latitude, longitude)
 
-            self._cache[cache_key] = (now, result)
-            return result
+                if facilities:
+                    nearest = facilities[0]
+                    min_dist = nearest["distance_meters"]
+                    result = {
+                        "is_industrial_nearby": min_dist <= 2000.0,
+                        "min_distance_m": min_dist,
+                        "min_distance_km": round(min_dist / 1000.0, 3),
+                        "nearest_facility_name": nearest["name"],
+                        "nearest_facility_type": nearest["facility_type"],
+                        "total_facilities_in_radius": len(facilities),
+                        "facilities": facilities[:10],
+                        "query_latitude": latitude,
+                        "query_longitude": longitude,
+                        "search_radius_m": radius_m,
+                        "status": "success",
+                    }
+                else:
+                    result = {
+                        "is_industrial_nearby": False,
+                        "min_distance_m": float(radius_m),
+                        "min_distance_km": round(float(radius_m) / 1000.0, 3),
+                        "nearest_facility_name": None,
+                        "nearest_facility_type": None,
+                        "total_facilities_in_radius": 0,
+                        "facilities": [],
+                        "query_latitude": latitude,
+                        "query_longitude": longitude,
+                        "search_radius_m": radius_m,
+                        "status": "no_facilities_found",
+                    }
 
-        except (httpx.ConnectTimeout, httpx.ReadTimeout) as err:
-            logger.warning(f"Overpass timeout for ({latitude:.4f}, {longitude:.4f}): {type(err).__name__}. Returning fallback.")
-            return self._fallback_context(latitude, longitude, radius_m, reason="offline_fallback")
-        except Exception as err:
-            logger.warning(f"OSM Overpass query failed for ({latitude:.4f}, {longitude:.4f}): {type(err).__name__}. Returning fallback.")
-            return self._fallback_context(latitude, longitude, radius_m, reason="offline_fallback")
+                self._cache[cache_key] = (now, result)
+                return result
+            except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError, httpx.HTTPError) as err:
+                logger.warning(f"Overpass mirror {target_url} request failed ({type(err).__name__}). Trying next mirror...")
+                continue
+            except Exception as err:
+                logger.warning(f"Unexpected error with Overpass mirror {target_url} ({type(err).__name__}). Trying next mirror...")
+                continue
+
+        reason = f"service_unavailable_http_{last_status_code}" if last_status_code else "offline_fallback"
+        return self._fallback_context(latitude, longitude, radius_m, reason=reason)
 
     def get_industrial_context_sync(
         self,
@@ -241,55 +255,60 @@ class OSMService:
             lon=longitude,
         )
 
-        try:
-            _timeout = httpx.Timeout(connect=OSM_CONNECT_TIMEOUT, read=OSM_READ_TIMEOUT, write=5.0, pool=5.0)
-            with httpx.Client(timeout=_timeout) as client:
-                resp = client.post(self.overpass_url, data={"data": query})
+        last_status_code = None
+        _timeout = httpx.Timeout(connect=OSM_CONNECT_TIMEOUT, read=OSM_READ_TIMEOUT, write=5.0, pool=5.0)
 
-            if resp.status_code != 200:
-                return self._fallback_context(latitude, longitude, radius_m, reason=f"service_unavailable_http_{resp.status_code}")
+        for target_url in self.overpass_urls:
+            try:
+                with httpx.Client(timeout=_timeout) as client:
+                    resp = client.post(target_url, data={"data": query})
 
-            data = resp.json()
-            elements = data.get("elements", [])
-            facilities = self._parse_overpass_elements(elements, latitude, longitude)
+                if resp.status_code != 200:
+                    last_status_code = resp.status_code
+                    continue
 
-            if facilities:
-                nearest = facilities[0]
-                min_dist = nearest["distance_meters"]
-                result = {
-                    "is_industrial_nearby": min_dist <= 2000.0,
-                    "min_distance_m": min_dist,
-                    "min_distance_km": round(min_dist / 1000.0, 3),
-                    "nearest_facility_name": nearest["name"],
-                    "nearest_facility_type": nearest["facility_type"],
-                    "total_facilities_in_radius": len(facilities),
-                    "facilities": facilities[:10],
-                    "query_latitude": latitude,
-                    "query_longitude": longitude,
-                    "search_radius_m": radius_m,
-                    "status": "success",
-                }
-            else:
-                result = {
-                    "is_industrial_nearby": False,
-                    "min_distance_m": float(radius_m),
-                    "min_distance_km": round(float(radius_m) / 1000.0, 3),
-                    "nearest_facility_name": None,
-                    "nearest_facility_type": None,
-                    "total_facilities_in_radius": 0,
-                    "facilities": [],
-                    "query_latitude": latitude,
-                    "query_longitude": longitude,
-                    "search_radius_m": radius_m,
-                    "status": "no_facilities_found",
-                }
+                data = resp.json()
+                elements = data.get("elements", [])
+                facilities = self._parse_overpass_elements(elements, latitude, longitude)
 
-            self._cache[cache_key] = (now, result)
-            return result
+                if facilities:
+                    nearest = facilities[0]
+                    min_dist = nearest["distance_meters"]
+                    result = {
+                        "is_industrial_nearby": min_dist <= 2000.0,
+                        "min_distance_m": min_dist,
+                        "min_distance_km": round(min_dist / 1000.0, 3),
+                        "nearest_facility_name": nearest["name"],
+                        "nearest_facility_type": nearest["facility_type"],
+                        "total_facilities_in_radius": len(facilities),
+                        "facilities": facilities[:10],
+                        "query_latitude": latitude,
+                        "query_longitude": longitude,
+                        "search_radius_m": radius_m,
+                        "status": "success",
+                    }
+                else:
+                    result = {
+                        "is_industrial_nearby": False,
+                        "min_distance_m": float(radius_m),
+                        "min_distance_km": round(float(radius_m) / 1000.0, 3),
+                        "nearest_facility_name": None,
+                        "nearest_facility_type": None,
+                        "total_facilities_in_radius": 0,
+                        "facilities": [],
+                        "query_latitude": latitude,
+                        "query_longitude": longitude,
+                        "search_radius_m": radius_m,
+                        "status": "no_facilities_found",
+                    }
 
-        except Exception as err:
-            logger.warning(f"OSM Overpass sync query failed ({err}). Returning safe fallback context.")
-            return self._fallback_context(latitude, longitude, radius_m, reason="service_unavailable")
+                self._cache[cache_key] = (now, result)
+                return result
+            except Exception:
+                continue
+
+        reason = f"service_unavailable_http_{last_status_code}" if last_status_code else "service_unavailable"
+        return self._fallback_context(latitude, longitude, radius_m, reason=reason)
 
     async def get_land_use(self, latitude: float, longitude: float, radius_m: int = 1000) -> Dict[str, Any]:
         """

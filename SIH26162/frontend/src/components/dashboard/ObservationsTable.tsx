@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
@@ -31,7 +31,7 @@ interface ObservationsTableProps {
   loading?: boolean
 }
 
-export function ObservationsTable({
+function ObservationsTableInner({
   observations,
   clusters,
   classifications,
@@ -470,3 +470,5 @@ export function ObservationsTable({
     </div>
   )
 }
+
+export const ObservationsTable = React.memo(ObservationsTableInner)

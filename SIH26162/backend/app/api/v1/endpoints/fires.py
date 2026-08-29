@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+
 from app.api.v1.schemas.fires import (
     BatchClassificationRequest,
     BatchClassificationResponse,
@@ -149,9 +151,10 @@ async def classify_detection(
         )
     except Exception as err:
         logger.error(f"Error during fire classification: {err}", exc_info=True)
+        detail_msg = "Classification inference error: An internal error occurred." if settings.environment != "development" else f"Classification inference error: {str(err)}"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Classification inference error: {str(err)}",
+            detail=detail_msg,
         )
 
 
@@ -178,9 +181,10 @@ async def batch_classify_detections(payload: BatchClassificationRequest):
         )
     except Exception as err:
         logger.error(f"Error during batch classification: {err}", exc_info=True)
+        detail_msg = "Batch classification error: An internal error occurred." if settings.environment != "development" else f"Batch classification error: {str(err)}"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Batch classification error: {str(err)}",
+            detail=detail_msg,
         )
 
 
@@ -348,11 +352,7 @@ async def get_fire(
     repo = FIRMSObservationRepository(db)
     record = await repo.get_by_id(fire_id)
     if not record:
-        return {
-            "fire_id": fire_id,
-            "status": "not_found",
-            "message": f"Observation #{fire_id} not found in database.",
-        }
+        raise HTTPException(status_code=404, detail=f"Observation #{fire_id} not found in database.")
 
     return {
         "id": record.id,

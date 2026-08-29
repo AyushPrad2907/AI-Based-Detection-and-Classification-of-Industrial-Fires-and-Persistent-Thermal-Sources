@@ -7,6 +7,7 @@ and explainable risk scoring for incoming thermal anomaly observations.
 Zero hardcoding: all predictions are produced by trained scikit-learn models.
 """
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -190,33 +191,46 @@ class ClassificationService:
         self,
         observations: List[Dict[str, Any]],
         query_osm: bool = False,
+        max_concurrency: int = 10,
     ) -> List[Dict[str, Any]]:
         """
-        Classify multiple thermal observations efficiently.
-        """
-        results: List[Dict[str, Any]] = []
-        for obs in observations:
-            bright_prim = float(obs.get("brightness_primary") or obs.get("bright_ti4") or 325.0)
-            bright_sec = float(obs.get("brightness_secondary") or obs.get("bright_ti5") or (bright_prim - 25.0))
-            frp_val = float(obs.get("frp") if obs.get("frp") is not None else 15.0)
-            conf_val = float(obs.get("confidence") or obs.get("confidence_score") or 80.0)
-            scan_val = float(obs.get("scan") if obs.get("scan") is not None else 0.375)
-            track_val = float(obs.get("track") if obs.get("track") is not None else 0.375)
+        Classify multiple thermal observations efficiently using bounded concurrency.
 
-            res = await self.classify_thermal_source(
-                latitude=float(obs["latitude"]),
-                longitude=float(obs["longitude"]),
-                brightness_primary=bright_prim,
-                brightness_secondary=bright_sec,
-                frp=frp_val,
-                confidence=conf_val,
-                daynight=str(obs.get("daynight") or "D"),
-                acq_datetime=obs.get("acq_datetime"),
-                scan=scan_val,
-                track=track_val,
-                satellite=str(obs.get("satellite") or "VIIRS"),
-                instrument=str(obs.get("instrument") or "VIIRS"),
-                query_osm=query_osm,
-            )
-            results.append(res)
-        return results
+        Args:
+            observations: List of observation dictionaries.
+            query_osm: Whether to query OSM for each observation.
+            max_concurrency: Maximum number of concurrent classifications (limits OSM API load).
+
+        Returns:
+            List of classification result dictionaries in the same order as input.
+        """
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def _classify_one(obs: Dict[str, Any]) -> Dict[str, Any]:
+            async with semaphore:
+                bright_prim = float(obs.get("brightness_primary") or obs.get("bright_ti4") or 325.0)
+                bright_sec = float(obs.get("brightness_secondary") or obs.get("bright_ti5") or (bright_prim - 25.0))
+                frp_val = float(obs.get("frp") if obs.get("frp") is not None else 15.0)
+                conf_val = float(obs.get("confidence") or obs.get("confidence_score") or 80.0)
+                scan_val = float(obs.get("scan") if obs.get("scan") is not None else 0.375)
+                track_val = float(obs.get("track") if obs.get("track") is not None else 0.375)
+
+                return await self.classify_thermal_source(
+                    latitude=float(obs["latitude"]),
+                    longitude=float(obs["longitude"]),
+                    brightness_primary=bright_prim,
+                    brightness_secondary=bright_sec,
+                    frp=frp_val,
+                    confidence=conf_val,
+                    daynight=str(obs.get("daynight") or "D"),
+                    acq_datetime=obs.get("acq_datetime"),
+                    scan=scan_val,
+                    track=track_val,
+                    satellite=str(obs.get("satellite") or "VIIRS"),
+                    instrument=str(obs.get("instrument") or "VIIRS"),
+                    query_osm=query_osm,
+                )
+
+        results = await asyncio.gather(*[_classify_one(obs) for obs in observations])
+        return list(results)
+

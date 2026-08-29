@@ -31,6 +31,9 @@ logger = logging.getLogger("api")
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    if settings.postgres_password == 'change_me_in_production' and settings.environment != 'development':
+        logger.critical("Default database password in use in non-development environment!")
+
     app = FastAPI(
         title="SIH26162 — Industrial Fire & Thermal AI Detector",
         description=(
@@ -46,10 +49,11 @@ def create_app() -> FastAPI:
     # CORS Middleware
     # In production, restrict origins to your frontend domain.
     # -------------------------------------------------------------------------
+    origins = ["http://localhost:5173", "http://localhost:3000"] if settings.environment == "development" else [settings.frontend_url]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Restrict to trusted domains in production
-        allow_credentials=True,
+        allow_origins=origins,
+        allow_credentials="*" not in origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
