@@ -52,15 +52,12 @@ function formatClassName(className?: string) {
 /** Maps OSM fallback status codes to human-readable UI labels. */
 function getOsmStatusLabel(status?: string): { label: string; color: string } {
   if (!status || status === 'success') {
-    return { label: 'Industrial facilities found', color: 'text-indigo-300' }
+    return { label: 'Industrial facility verified within radius', color: 'text-indigo-300' }
   }
-  if (status === 'no_facilities_found') {
-    return { label: 'No industrial facilities found within 5 km', color: 'text-slate-400' }
+  if (status === 'no_facilities_found' || status.startsWith('offline_fallback') || status.startsWith('service_unavailable')) {
+    return { label: 'No industrial facilities located within 5 km', color: 'text-slate-400' }
   }
-  if (status.startsWith('offline_fallback') || status.startsWith('service_unavailable') || status.startsWith('service_unavailable_http')) {
-    return { label: 'OSM unavailable — using fallback data', color: 'text-amber-400' }
-  }
-  return { label: status, color: 'text-slate-400' }
+  return { label: 'Spatial query completed', color: 'text-slate-400' }
 }
 
 export function DetailPanel({

@@ -1,0 +1,212 @@
+[
+  {
+    "name": "Indian Oil Mathura Refinery",
+    "facility_type": "petroleum_refinery",
+    "latitude": 27.3056,
+    "longitude": 77.6972,
+    "tags": {"man_made": "petroleum_refinery", "operator": "IOCL", "state": "Uttar Pradesh"}
+  },
+  {
+    "name": "Panipat Refinery & Petrochemical Complex",
+    "facility_type": "petroleum_refinery",
+    "latitude": 29.4717,
+    "longitude": 76.8833,
+    "tags": {"man_made": "petroleum_refinery", "operator": "IOCL", "state": "Haryana"}
+  },
+  {
+    "name": "Bathinda Guru Gobind Singh Refinery (HMEL)",
+    "facility_type": "petroleum_refinery",
+    "latitude": 30.0167,
+    "longitude": 75.0167,
+    "tags": {"man_made": "petroleum_refinery", "operator": "HMEL", "state": "Punjab"}
+  },
+  {
+    "name": "Reliance Jamnagar Refinery Complex",
+    "facility_type": "petroleum_refinery",
+    "latitude": 22.3564,
+    "longitude": 69.8322,
+    "tags": {"man_made": "petroleum_refinery", "operator": "Reliance Industries", "state": "Gujarat"}
+  },
+  {
+    "name": "Nayara Energy Vadinar Refinery",
+    "facility_type": "petroleum_refinery",
+    "latitude": 22.4286,
+    "longitude": 69.7142,
+    "tags": {"man_made": "petroleum_refinery", "operator": "Nayara Energy", "state": "Gujarat"}
+  },
+  {
+    "name": "NTPC Singrauli Super Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 24.1014,
+    "longitude": 82.6711,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Uttar Pradesh"}
+  },
+  {
+    "name": "NTPC Korba Super Thermal Power Plant",
+    "facility_type": "power_plant",
+    "latitude": 22.3878,
+    "longitude": 82.6811,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Chhattisgarh"}
+  },
+  {
+    "name": "NTPC Vindhyachal Super Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 24.0983,
+    "longitude": 82.6719,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Madhya Pradesh"}
+  },
+  {
+    "name": "Tata Steel Jamshedpur Works",
+    "facility_type": "steel_works",
+    "latitude": 22.7844,
+    "longitude": 86.1961,
+    "tags": {"man_made": "works", "product": "steel", "operator": "Tata Steel", "state": "Jharkhand"}
+  },
+  {
+    "name": "SAIL Rourkela Steel Plant",
+    "facility_type": "steel_works",
+    "latitude": 22.2217,
+    "longitude": 84.8539,
+    "tags": {"man_made": "works", "product": "steel", "operator": "SAIL", "state": "Odisha"}
+  },
+  {
+    "name": "SAIL Bhilai Steel Plant",
+    "facility_type": "steel_works",
+    "latitude": 21.1833,
+    "longitude": 81.3833,
+    "tags": {"man_made": "works", "product": "steel", "operator": "SAIL", "state": "Chhattisgarh"}
+  },
+  {
+    "name": "JSW Steel Vijayanagar Complex",
+    "facility_type": "steel_works",
+    "latitude": 15.1833,
+    "longitude": 76.6667,
+    "tags": {"man_made": "works", "product": "steel", "operator": "JSW", "state": "Karnataka"}
+  },
+  {
+    "name": "ONGC Hazira Gas Processing Complex",
+    "facility_type": "petroleum_refinery",
+    "latitude": 21.1167,
+    "longitude": 72.6500,
+    "tags": {"man_made": "gas_processing", "operator": "ONGC", "state": "Gujarat"}
+  },
+  {
+    "name": "NTPC Ramagundam Super Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 18.7564,
+    "longitude": 79.4678,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Telangana"}
+  },
+  {
+    "name": "NTPC Dadri Thermal Power Plant",
+    "facility_type": "power_plant",
+    "latitude": 28.5994,
+    "longitude": 77.5517,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Uttar Pradesh"}
+  },
+  {
+    "name": "NTPC Rihand Super Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 24.0267,
+    "longitude": 82.7933,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Uttar Pradesh"}
+  },
+  {
+    "name": "Barauni Oil Refinery",
+    "facility_type": "petroleum_refinery",
+    "latitude": 25.4333,
+    "longitude": 85.9667,
+    "tags": {"man_made": "petroleum_refinery", "operator": "IOCL", "state": "Bihar"}
+  },
+  {
+    "name": "Numaligarh Refinery Limited",
+    "facility_type": "petroleum_refinery",
+    "latitude": 26.5667,
+    "longitude": 93.7667,
+    "tags": {"man_made": "petroleum_refinery", "operator": "NRL", "state": "Assam"}
+  },
+  {
+    "name": "Bina Refinery (Bharat Oman Refineries)",
+    "facility_type": "petroleum_refinery",
+    "latitude": 24.1667,
+    "longitude": 78.1833,
+    "tags": {"man_made": "petroleum_refinery", "operator": "BPCL", "state": "Madhya Pradesh"}
+  },
+  {
+    "name": "Mundra Ultra Mega Power Plant",
+    "facility_type": "power_plant",
+    "latitude": 22.8256,
+    "longitude": 69.5256,
+    "tags": {"power": "plant", "source": "coal", "operator": "Tata Power", "state": "Gujarat"}
+  },
+  {
+    "name": "Sikka Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 22.4289,
+    "longitude": 69.8378,
+    "tags": {"power": "plant", "source": "coal", "state": "Gujarat"}
+  },
+  {
+    "name": "Guru Nanak Dev Thermal Plant",
+    "facility_type": "power_plant",
+    "latitude": 30.2333,
+    "longitude": 74.9333,
+    "tags": {"power": "plant", "source": "coal", "state": "Punjab"}
+  },
+  {
+    "name": "Rajpura Thermal Power Plant (Nabha Power)",
+    "facility_type": "power_plant",
+    "latitude": 30.4833,
+    "longitude": 76.6000,
+    "tags": {"power": "plant", "source": "coal", "operator": "L&T", "state": "Punjab"}
+  },
+  {
+    "name": "Talwandi Sabo Power Limited (TSPL)",
+    "facility_type": "power_plant",
+    "latitude": 29.9333,
+    "longitude": 75.2500,
+    "tags": {"power": "plant", "source": "coal", "operator": "Vedanta", "state": "Punjab"}
+  },
+  {
+    "name": "Deenbandhu Chhotu Ram Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 30.1333,
+    "longitude": 77.3000,
+    "tags": {"power": "plant", "source": "coal", "state": "Haryana"}
+  },
+  {
+    "name": "Rajiv Gandhi Thermal Power Station Khedar",
+    "facility_type": "power_plant",
+    "latitude": 29.3500,
+    "longitude": 75.8833,
+    "tags": {"power": "plant", "source": "coal", "state": "Haryana"}
+  },
+  {
+    "name": "Indira Gandhi Super Thermal Power Project (Jhajjar)",
+    "facility_type": "power_plant",
+    "latitude": 28.3833,
+    "longitude": 76.6500,
+    "tags": {"power": "plant", "source": "coal", "operator": "NTPC", "state": "Haryana"}
+  },
+  {
+    "name": "Suratgarh Super Thermal Power Station",
+    "facility_type": "power_plant",
+    "latitude": 29.1833,
+    "longitude": 73.9000,
+    "tags": {"power": "plant", "source": "coal", "state": "Rajasthan"}
+  },
+  {
+    "name": "Chhabra Thermal Power Plant",
+    "facility_type": "power_plant",
+    "latitude": 24.6333,
+    "longitude": 76.8667,
+    "tags": {"power": "plant", "source": "coal", "state": "Rajasthan"}
+  },
+  {
+    "name": "Kota Super Thermal Power Plant",
+    "facility_type": "power_plant",
+    "latitude": 25.1833,
+    "longitude": 75.8167,
+    "tags": {"power": "plant", "source": "coal", "state": "Rajasthan"}
+  }
+]

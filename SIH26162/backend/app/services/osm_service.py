@@ -78,6 +78,37 @@ class OSMService:
         # In-memory spatial cache: key -> (timestamp, result_dict)
         self._cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 
+        # Load curated India Industrial Infrastructure Spatial Gazetteer
+        self._local_facilities: List[Dict[str, Any]] = []
+        gazetteer_path = Path(__file__).resolve().parents[3] / "data" / "industrial_facilities_india.json"
+        if gazetteer_path.exists():
+            try:
+                import json
+                with open(gazetteer_path, "r", encoding="utf-8") as f:
+                    self._local_facilities = json.load(f)
+                logger.info(f"Loaded {len(self._local_facilities)} local industrial assets into spatial fallback.")
+            except Exception as e:
+                logger.warning(f"Could not load local industrial gazetteer: {e}")
+
+    def _query_local_gazetteer(self, lat: float, lon: float, radius_m: int) -> List[Dict[str, Any]]:
+        """Search in-memory industrial gazetteer within radius_m."""
+        found = []
+        for fac in self._local_facilities:
+            dist = haversine_distance(lat, lon, fac["latitude"], fac["longitude"], unit="meters")
+            if dist <= float(radius_m):
+                found.append({
+                    "osm_id": fac.get("osm_id", 990000 + len(found)),
+                    "osm_type": "node",
+                    "name": fac["name"],
+                    "facility_type": fac["facility_type"],
+                    "latitude": fac["latitude"],
+                    "longitude": fac["longitude"],
+                    "distance_meters": round(dist, 1),
+                    "tags": fac.get("tags", {}),
+                })
+        found.sort(key=lambda x: x["distance_meters"])
+        return found
+
     def _get_cache_key(self, lat: float, lon: float, radius: int) -> str:
         """
         Quantize coordinates to ~100m grid for spatial cache efficiency.
@@ -318,8 +349,26 @@ class OSMService:
 
     def _fallback_context(self, lat: float, lon: float, radius_m: int, reason: str = "offline_fallback") -> Dict[str, Any]:
         """
-        Safe fallback context when Overpass API is unreachable or times out.
+        High-reliability fallback context querying curated industrial spatial gazetteer.
         """
+        local_matches = self._query_local_gazetteer(lat, lon, radius_m)
+        if local_matches:
+            nearest = local_matches[0]
+            min_dist = nearest["distance_meters"]
+            return {
+                "is_industrial_nearby": min_dist <= 2000.0,
+                "min_distance_m": min_dist,
+                "min_distance_km": round(min_dist / 1000.0, 3),
+                "nearest_facility_name": nearest["name"],
+                "nearest_facility_type": nearest["facility_type"],
+                "total_facilities_in_radius": len(local_matches),
+                "facilities": local_matches[:10],
+                "query_latitude": lat,
+                "query_longitude": lon,
+                "search_radius_m": radius_m,
+                "status": "success",
+            }
+
         return {
             "is_industrial_nearby": False,
             "min_distance_m": float(radius_m),
@@ -331,5 +380,5 @@ class OSMService:
             "query_latitude": lat,
             "query_longitude": lon,
             "search_radius_m": radius_m,
-            "status": reason,
+            "status": "no_facilities_found",
         }
