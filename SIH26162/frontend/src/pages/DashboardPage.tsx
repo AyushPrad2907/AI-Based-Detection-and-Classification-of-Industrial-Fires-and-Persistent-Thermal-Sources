@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Flame,
   Activity,
@@ -11,6 +11,8 @@ import {
   Radio,
   FlaskConical,
   Satellite,
+  Download,
+  Timer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,220 +23,72 @@ import { DetailPanel } from '@/components/dashboard/DetailPanel'
 import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts'
 import { ObservationsTable } from '@/components/dashboard/ObservationsTable'
 import { SystemHealthModal } from '@/components/dashboard/SystemHealthModal'
+import { SimulationSandbox } from '@/components/dashboard/SimulationSandbox'
 import { ApiService } from '@/lib/api'
-import type {
-  FIRMSObservation,
-  PersistentThermalCluster,
-  ClassificationRecord,
-  SelectedEntity,
-  DashboardFilterState,
-  DatabaseHealth,
-} from '@/types'
-
-// ---------------------------------------------------------------------------
-// Demo Scenario Configuration (Objective 5 — real DB-backed observations)
-// All IDs and values verified against live PostGIS database.
-// ---------------------------------------------------------------------------
-export const DEMO_SCENARIOS = [
-  {
-    id: 'A',
-    label: 'Persistent Industrial Source',
-    description: 'Cluster 72 — nocturnal, high-confidence, Haryana industrial belt',
-    obsId: 3028,
-    latitude: 29.45829,
-    longitude: 76.86964,
-    frp: 15.72,
-    confidence: 98,
-    brightness_primary: 319.27,
-    brightness_secondary: 296.1,
-    daynight: 'N',
-    satellite: 'TERRA',
-    instrument: 'MODIS',
-    cluster_id: 72,
-    acq_datetime: '2024-01-15T20:45:00Z',
-  },
-  {
-    id: 'B',
-    label: 'Low-Risk Anomaly',
-    description: 'Low FRP / Low confidence / Daytime transient — likely agricultural',
-    obsId: 2951,
-    latitude: 29.703,
-    longitude: 68.51967,
-    frp: 1.34,
-    confidence: 30,
-    brightness_primary: 310.0,
-    brightness_secondary: 295.0,
-    daynight: 'D',
-    satellite: 'N20',
-    instrument: 'VIIRS',
-    cluster_id: null,
-    acq_datetime: '2024-01-15T10:15:00Z',
-  },
-  {
-    id: 'C',
-    label: 'High-Risk Thermal Event',
-    description: 'FRP 97 MW / 100% confidence — Sri Lanka industrial fire',
-    obsId: 1884,
-    latitude: 6.62644,
-    longitude: 81.2471,
-    frp: 97.24,
-    confidence: 100,
-    brightness_primary: 365.07,
-    brightness_secondary: 296.24,
-    daynight: 'D',
-    satellite: 'TERRA',
-    instrument: 'MODIS',
-    cluster_id: null,
-    acq_datetime: '2024-01-15T07:20:00Z',
-  },
-  {
-    id: 'D',
-    label: 'Wildfire / Agricultural Burn',
-    description: 'Goa coastal belt — 135 MW, moderate-confidence daytime detection',
-    obsId: 2611,
-    latitude: 15.77281,
-    longitude: 73.70358,
-    frp: 135.46,
-    confidence: 30,
-    brightness_primary: 337.78,
-    brightness_secondary: 295.82,
-    daynight: 'D',
-    satellite: 'N20',
-    instrument: 'VIIRS',
-    cluster_id: null,
-    acq_datetime: '2024-01-15T08:00:00Z',
-  },
-] as const
-
-/** Convert a DEMO_SCENARIO into a synthetic FIRMSObservation for selection. */
-function scenarioToObservation(s: (typeof DEMO_SCENARIOS)[number]): FIRMSObservation {
-  return {
-    id: s.obsId,
-    latitude: s.latitude,
-    longitude: s.longitude,
-    brightness_primary: s.brightness_primary,
-    brightness_secondary: s.brightness_secondary,
-    frp: s.frp,
-    confidence_score: s.confidence,
-    confidence_category: s.confidence >= 80 ? 'high' : s.confidence >= 50 ? 'nominal' : 'low',
-    acq_datetime: s.acq_datetime,
-    satellite: s.satellite,
-    instrument: s.instrument,
-    daynight: s.daynight,
-    scan: 0.375,
-    track: 0.375,
-    cluster_id: s.cluster_id ?? null,
-  }
-}
+import { exportToCSV } from '@/lib/exportUtils'
+import { useDashboardStore, DEMO_SCENARIOS } from '@/store/useDashboardStore'
 
 export function DashboardPage() {
-  // Primary Data State
-  const [observations, setObservations] = useState<FIRMSObservation[]>([])
-  const [totalObsCount, setTotalObsCount] = useState<number>(0)
-  const [clusters, setClusters] = useState<PersistentThermalCluster[]>([])
-  const [totalClustersCount, setTotalClustersCount] = useState<number>(0)
-  const [classifications, setClassifications] = useState<ClassificationRecord[]>([])
+  const observations = useDashboardStore((s) => s.observations)
+  const totalObsCount = useDashboardStore((s) => s.totalObsCount)
+  const clusters = useDashboardStore((s) => s.clusters)
+  const totalClustersCount = useDashboardStore((s) => s.totalClustersCount)
+  const classifications = useDashboardStore((s) => s.classifications)
 
-  // Selection & UI State
-  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null)
-  const [viewMode, setViewMode] = useState<'split' | 'map' | 'table' | 'analytics'>('split')
-  const [isHealthModalOpen, setIsHealthModalOpen] = useState<boolean>(false)
-  const [dbHealth, setDbHealth] = useState<DatabaseHealth | null>(null)
+  const selectedEntity = useDashboardStore((s) => s.selectedEntity)
+  const viewMode = useDashboardStore((s) => s.viewMode)
+  const isHealthModalOpen = useDashboardStore((s) => s.isHealthModalOpen)
+  const dbHealth = useDashboardStore((s) => s.dbHealth)
 
-  // Filtering & Pagination State
-  const [filters, setFilters] = useState<DashboardFilterState>({
-    satellite: 'ALL',
-    predictedClass: 'ALL',
-    riskLevel: 'ALL',
-    minConfidence: 0,
-    minFRP: 0,
-    useMapBounds: false,
-  })
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize] = useState<number>(50)
-  const [totalPages, setTotalPages] = useState<number>(1)
+  const autoPulseInterval = useDashboardStore((s) => s.autoPulseInterval)
+  const filters = useDashboardStore((s) => s.filters)
+  const currentPage = useDashboardStore((s) => s.currentPage)
+  const totalPages = useDashboardStore((s) => s.totalPages)
 
-  // Status & Error State
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isOffline, setIsOffline] = useState<boolean>(false)
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date())
+  const loading = useDashboardStore((s) => s.loading)
+  const error = useDashboardStore((s) => s.error)
+  const isOffline = useDashboardStore((s) => s.isOffline)
+  const lastRefreshed = useDashboardStore((s) => s.lastRefreshed)
 
-  // Demo Mode State (Objective 4 — does NOT modify the production database)
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(false)
-  const [activeDemoScenario, setActiveDemoScenario] = useState<number>(0)
+  const isDemoMode = useDashboardStore((s) => s.isDemoMode)
+  const activeDemoScenario = useDashboardStore((s) => s.activeDemoScenario)
 
-  // Demo mode: load scenario directly from real DB observation or synthetic entity
-  const activateDemo = (scenarioIndex: number) => {
-    const s = DEMO_SCENARIOS[scenarioIndex]
-    setActiveDemoScenario(scenarioIndex)
-    setSelectedEntity({ type: 'observation', data: scenarioToObservation(s) })
-  }
+  const fetchDashboardData = useDashboardStore((s) => s.fetchDashboardData)
+  const setSelectedEntity = useDashboardStore((s) => s.setSelectedEntity)
+  const setViewMode = useDashboardStore((s) => s.setViewMode)
+  const setAutoPulseInterval = useDashboardStore((s) => s.setAutoPulseInterval)
+  const setFilters = useDashboardStore((s) => s.setFilters)
+  const resetFilters = useDashboardStore((s) => s.resetFilters)
+  const setCurrentPage = useDashboardStore((s) => s.setCurrentPage)
+  const setIsHealthModalOpen = useDashboardStore((s) => s.setIsHealthModalOpen)
+  const setDemoMode = useDashboardStore((s) => s.setDemoMode)
+  const activateDemoScenario = useDashboardStore((s) => s.activateDemoScenario)
+  const handleMapBoundsChange = useDashboardStore((s) => s.handleMapBoundsChange)
 
-  // Fetch real data from backend APIs
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const [countdown, setCountdown] = useState<number>(autoPulseInterval)
 
-      // 1. Fetch Observations
-      const obsRes = await ApiService.getObservations(filters, currentPage, pageSize)
-      setObservations(obsRes.observations || [])
-      setTotalObsCount(obsRes.total || 0)
-      setTotalPages(obsRes.total_pages || 1)
-
-      // 2. Fetch Persistent Clusters
-      const clustersRes = await ApiService.getPersistentSources(filters, 200, 0)
-      setClusters(clustersRes.clusters || [])
-      setTotalClustersCount(clustersRes.total_clusters || 0)
-
-      // 3. Fetch Stored Classifications
-      const clfRes = await ApiService.getClassifications(filters, 1, 100)
-      setClassifications(clfRes.classifications || [])
-
-      // 4. Fetch DB Health
-      const dbRes = await ApiService.getDatabaseHealth().catch(() => null)
-      setDbHealth(dbRes)
-
-      setIsOffline(false)
-      setLastRefreshed(new Date())
-    } catch (err: unknown) {
-      console.error('Failed to load dashboard telemetry:', err)
-      setIsOffline(true)
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to communicate with SIH26162 FastAPI / PostGIS backend.'
-      )
-    } finally {
-      setLoading(false)
-    }
-  }, [filters, currentPage, pageSize])
-
-  // Initial Load & on filter/page change
+  // Initial Data Fetch
   useEffect(() => {
-    loadDashboardData()
-  }, [loadDashboardData])
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
-  // Handle map bounding box updates
-  const handleMapBoundsChange = (bbox: [number, number, number, number]) => {
-    if (filters.useMapBounds) {
-      setFilters((prev) => ({ ...prev, bbox }))
-    }
-  }
+  // Live Auto-Pulse Polling Effect
+  useEffect(() => {
+    if (autoPulseInterval <= 0) return
 
-  // Handle Filter Reset
-  const handleResetFilters = () => {
-    setFilters({
-      satellite: 'ALL',
-      predictedClass: 'ALL',
-      riskLevel: 'ALL',
-      minConfidence: 0,
-      minFRP: 0,
-      useMapBounds: false,
-    })
-    setCurrentPage(1)
-  }
+    setCountdown(autoPulseInterval)
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          fetchDashboardData()
+          return autoPulseInterval
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [autoPulseInterval, fetchDashboardData])
 
   return (
     <div className="flex flex-col gap-6 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-screen">
@@ -266,17 +120,41 @@ export function DashboardPage() {
 
         {/* Action Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Live Auto-Pulse Ticker */}
+          <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono">
+            <button
+              onClick={() => {
+                const next = autoPulseInterval === 0 ? 30 : autoPulseInterval === 30 ? 15 : autoPulseInterval === 15 ? 60 : 0
+                setAutoPulseInterval(next)
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+                autoPulseInterval > 0
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Toggle Live Auto-Pulse Telemetry Polling"
+            >
+              <Timer className={`size-3.5 ${autoPulseInterval > 0 ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
+              <span>{autoPulseInterval > 0 ? `Pulse: ${countdown}s` : 'Auto-Pulse: Off'}</span>
+            </button>
+          </div>
+
+          {/* Export CSV Intelligence Report */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => exportToCSV(observations, classifications, clusters)}
+            disabled={observations.length === 0}
+            className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+            title="Download Full Intelligence Report in CSV format"
+          >
+            <Download className="size-3.5 mr-1 text-cyan-400" />
+            <span className="hidden sm:inline">Export Report</span>
+          </Button>
+
           {/* Live / Demo Mode Toggle */}
           <button
-            onClick={() => {
-              const nextDemo = !isDemoMode
-              setIsDemoMode(nextDemo)
-              if (nextDemo) {
-                activateDemo(0) // Default to Scenario A on entering demo
-              } else {
-                setSelectedEntity(null) // Clear selection on exiting demo
-              }
-            }}
+            onClick={() => setDemoMode(!isDemoMode)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ${
               isDemoMode
                 ? 'bg-purple-900/30 border-purple-500/40 text-purple-300 hover:bg-purple-900/50'
@@ -320,7 +198,7 @@ export function DashboardPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={loadDashboardData}
+            onClick={fetchDashboardData}
             disabled={loading}
             className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
           >
@@ -378,6 +256,18 @@ export function DashboardPage() {
               <BarChart3 className="size-3.5" />
               <span className="hidden sm:inline">Analytics</span>
             </button>
+            <button
+              onClick={() => setViewMode('simulator')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                viewMode === 'simulator'
+                  ? 'bg-purple-600 text-white font-semibold shadow-sm'
+                  : 'text-purple-400 hover:text-purple-300'
+              }`}
+              title="Interactive AI Anomaly Sandbox Simulator"
+            >
+              <FlaskConical className="size-3.5" />
+              <span className="hidden sm:inline">AI Sandbox</span>
+            </button>
           </div>
         </div>
       </div>
@@ -394,7 +284,7 @@ export function DashboardPage() {
           </div>
           <Button
             size="sm"
-            onClick={loadDashboardData}
+            onClick={fetchDashboardData}
             className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs h-7 px-3"
           >
             Retry Connection
@@ -419,7 +309,7 @@ export function DashboardPage() {
             {DEMO_SCENARIOS.map((s, idx) => (
               <button
                 key={s.id}
-                onClick={() => activateDemo(idx)}
+                onClick={() => activateDemoScenario(idx)}
                 className={`text-left p-2.5 rounded-lg border text-xs transition-all ${
                   activeDemoScenario === idx
                     ? 'bg-purple-600/20 border-purple-500/60 text-purple-200'
@@ -449,14 +339,18 @@ export function DashboardPage() {
       {/* Sensor & Spatial Filter Console */}
       <FilterBar
         filters={filters}
-        onFiltersChange={(newFilters) => {
-          setFilters(newFilters)
-          setCurrentPage(1)
-        }}
-        onReset={handleResetFilters}
+        onFiltersChange={(newFilters) => setFilters(newFilters)}
+        onReset={resetFilters}
         totalCount={totalObsCount}
         loading={loading}
       />
+
+      {/* AI Simulation Sandbox Mode */}
+      {viewMode === 'simulator' && (
+        <div className="space-y-6">
+          <SimulationSandbox />
+        </div>
+      )}
 
       {/* Main Workspace Layout */}
       {viewMode === 'split' && (
@@ -490,7 +384,7 @@ export function DashboardPage() {
                 onClassificationComplete={() => {
                   // Refresh stored classifications count
                   ApiService.getClassifications(filters, 1, 100).then((res) => {
-                    setClassifications(res.classifications || [])
+                    useDashboardStore.setState({ classifications: res.classifications || [] })
                   })
                 }}
               />
@@ -557,7 +451,7 @@ export function DashboardPage() {
                 onClose={() => setSelectedEntity(null)}
                 onClassificationComplete={() => {
                   ApiService.getClassifications(filters, 1, 100).then((res) => {
-                    setClassifications(res.classifications || [])
+                    useDashboardStore.setState({ classifications: res.classifications || [] })
                   })
                 }}
               />
