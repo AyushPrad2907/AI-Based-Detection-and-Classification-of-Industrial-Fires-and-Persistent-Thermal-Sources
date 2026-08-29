@@ -10,8 +10,10 @@ and offline fallbacks.
 """
 
 import asyncio
+import json
 import logging
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import httpx
@@ -83,7 +85,6 @@ class OSMService:
         gazetteer_path = Path(__file__).resolve().parents[3] / "data" / "industrial_facilities_india.json"
         if gazetteer_path.exists():
             try:
-                import json
                 with open(gazetteer_path, "r", encoding="utf-8") as f:
                     self._local_facilities = json.load(f)
                 logger.info(f"Loaded {len(self._local_facilities)} local industrial assets into spatial fallback.")
