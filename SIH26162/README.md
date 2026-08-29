@@ -9,12 +9,13 @@
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![PostGIS](https://img.shields.io/badge/Database-PostGIS%20%2F%20SQLAlchemy2-336791?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Scikit-Learn](https://img.shields.io/badge/ML%20Engine-Scikit--Learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-97%2F97%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-50%2F50%20Passing-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
+![Facilities DB](https://img.shields.io/badge/Facilities%20DB-127%20Critical%20Sites-blue?style=for-the-badge&logo=map&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
 
 <br/>
 
-> **An apex-grade Geospatial AI intelligence system combining NASA FIRMS satellite thermal telemetry (VIIRS 375m & MODIS 1km), OpenStreetMap land-use spatial semantics, spatio-temporal clustering, and explainable machine learning models to detect, classify, and track industrial fires, flare stacks, furnaces, and persistent thermal anomalies in real time.**
+> **An apex-grade Geospatial AI intelligence system combining NASA FIRMS satellite thermal telemetry (VIIRS 375m & MODIS 1km), Sentinel-2 EO Browser optical verification, OpenStreetMap land-use spatial semantics, 127 curated Indian industrial infrastructure facilities, spatio-temporal clustering, and explainable machine learning models to detect, classify, and track industrial fires, flare stacks, furnaces, and persistent thermal anomalies in real time.**
 
 ---
 
@@ -31,9 +32,9 @@ Industrial fires, uncontrolled flare emissions, and unmonitored thermal anomalie
 1. ❌ **High False Alarm Rates**: Unable to distinguish between routine industrial combustion (furnaces, steel kilns) and dangerous uncontrolled fires.
 2. ❌ **Lack of Spatial Context**: Thermal hotspots from satellites are isolated dots without surrounding land-use intelligence.
 3. ❌ **No Temporal Persistence Tracking**: Cannot discern transient agricultural crop burns from permanent industrial thermal signatures.
-4. ❌ **High Detection Latency**: Lack automated real-time ingestion and ML inference pipelines.
+4. ❌ **High Detection Latency**: Lack automated real-time ingestion, ML inference pipelines, and satellite imagery cross-verification.
 
-**SIH26162** overcomes these challenges by fusing **real-time satellite thermal sensors** with **OpenStreetMap geospatial context graphs**, **spatio-temporal clustering algorithms**, **explainable ML models**, and a **production-grade PostgreSQL + PostGIS spatial persistence layer** to deliver categorized, actionable alerts.
+**SIH26162** overcomes these challenges by fusing **real-time satellite thermal sensors** with **127+ curated Indian industrial infrastructure facilities (Refineries, Power Plants, Steel Works, Petrochemicals, LNG Terminals, Cement, Mining)**, **Sentinel-2 optical satellite imagery verification**, **spatio-temporal clustering algorithms**, **explainable ML models**, and a **production-grade PostgreSQL + PostGIS spatial persistence layer** to deliver categorized, actionable alerts.
 
 ---
 
@@ -41,9 +42,10 @@ Industrial fires, uncontrolled flare emissions, and unmonitored thermal anomalie
 
 ```mermaid
 flowchart TB
-    subgraph S1["🛰️ Data Ingestion Layer (Phase 1)"]
-        FIRMS["NASA FIRMS API<br/>(VIIRS 375m / MODIS 1km / Landsat)"]
-        OSM["OpenStreetMap Overpass API<br/>(Industrial Proximity & Facilities)"]
+    subgraph S1["🛰️ Data Ingestion & Imagery Layer (Phase 1)"]
+        FIRMS["NASA FIRMS API<br/>(VIIRS 375m / MODIS 1km)"]
+        SENTINEL["Sentinel-2 EO Browser<br/>(Optical Satellite Imagery Link)"]
+        GAZETTEER["127 Critical Facilities DB<br/>(Refineries, Power, Steel, LNG)"]
         CLI["CLI Ingestion Pipeline<br/>(scripts/download_firms_data.py)"]
         RAW_DB[("Raw Ingestion Storage<br/>data/raw/firms/")]
     end
@@ -62,21 +64,22 @@ flowchart TB
         RISK["Explainable RiskScorer (0-100 Score)<br/>(ml/inference/risk_scorer.py)"]
     end
 
-    subgraph S4["🚀 Serving & Persistence Layer (Phase 3)"]
+    subgraph S4["🚀 Serving & Persistence Layer (Phase 3 & 4)"]
         FASTAPI["FastAPI REST Backend<br/>(/api/v1/fires/observations, /thermal/sources, /classify)"]
         POSTGIS[("PostgreSQL 16 + PostGIS 3.4<br/>(SQLAlchemy 2 Async + Alembic)")]
-        INGEST["Database Bulk Ingest<br/>(scripts/ingest_to_db.py)"]
+        REACT["React 19 + Leaflet UI Command Center<br/>(Sentinel-2 Optical View + Stadia Dark GIS)"]
     end
 
     FIRMS --> CLI --> RAW_DB --> PRE --> PROC_DB --> LOADER
     LOADER --> THERMAL --> FEAT
-    OSM --> FEAT
+    GAZETTEER --> FEAT
     FEAT --> LABELER --> CLS
     CLS --> FASTAPI
     THERMAL --> FASTAPI
     RISK --> FASTAPI
-    PROC_DB --> INGEST --> POSTGIS
+    SENTINEL -.-> REACT
     FASTAPI <--> POSTGIS
+    FASTAPI <--> REACT
 ```
 
 ---
@@ -85,13 +88,13 @@ flowchart TB
 
 | Layer | Primary Technologies | Capabilities |
 |---|---|---|
-| **Satellite & Telemetry** | `NASA FIRMS REST API`, `VIIRS (SNPP/NOAA-20/21)`, `MODIS` | 375m & 1km active fire thermal anomalies, Brightness Temperature (Kelvin), Fire Radiative Power (MW) |
-| **Geospatial & Spatial Context** | `OpenStreetMap Overpass API`, `GeoPandas`, `Shapely`, `Haversine Metric` | Industrial land-use boundaries, proximity buffers, facility distance calculations |
+| **Satellite & Telemetry** | `NASA FIRMS REST API`, `VIIRS (SNPP/NOAA-20/21)`, `MODIS`, `Sentinel-2 EO Browser` | 375m & 1km active fire thermal anomalies, Brightness Temperature (Kelvin), Fire Radiative Power (MW), Sentinel-2 optical band cross-verification |
+| **Geospatial & Spatial Context** | `127 Indian Infrastructure Facilities DB`, `GeoPandas`, `Shapely`, `Haversine Metric` | 127 verified industrial sites (Refineries, Thermal Power, Steel, LNG, Cement), proximity buffers, spatial distance calculations |
 | **Machine Learning & AI** | `scikit-learn`, `NumPy`, `Pandas`, `SciPy`, `Joblib` | Multi-class thermal classification, DBSCAN spatio-temporal clustering, weak supervision, explainable risk scoring |
 | **Backend & Microservices** | `FastAPI`, `Uvicorn`, `Pydantic V2`, `HTTPX`, `AsyncPG` | High-throughput asynchronous endpoints, rate-limited resilient retry clients |
 | **Database & GIS** | `PostgreSQL 16`, `PostGIS 3.4`, `SQLAlchemy 2 (Async)`, `GeoAlchemy2`, `Alembic` | Spatial indexing (GiST R-Tree), coordinate geometry, multi-criteria filtering, B-Tree indexes |
-| **Frontend & Analytics** | `React 18`, `TypeScript`, `Vite`, `Tailwind CSS`, `Lucide Icons` | Real-time interactive spatial map, heatmaps, thermal source breakdown, live alerts (Phase 4) |
-| **DevOps & Testing** | `Docker`, `Docker Compose`, `Pytest`, `AnyIO`, `Alembic` | Containerized microservices, migration versioning, deterministic test fixtures |
+| **Frontend & Analytics** | `React 19`, `TypeScript`, `Vite`, `Tailwind CSS 4`, `Leaflet`, `Zustand` | Real-time interactive spatial map, Stadia Dark GIS, Sentinel-2 link integration, thermal source breakdown, SIH Demo Mode |
+| **DevOps & Testing** | `Docker`, `Docker Compose`, `Pytest`, `AnyIO`, `Vitest` | Containerized microservices, migration versioning, 50 passing Python & Vitest integration tests |
 
 ---
 
@@ -101,10 +104,10 @@ flowchart TB
 |:---:|---|:---:|---|
 | **Phase 0** | Foundation & Architecture | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Directory layout, FastAPI skeleton, Docker Compose, PostGIS schema scaffolding |
 | **Phase 1** | Real NASA FIRMS Data Ingestion | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Resilient FIRMS API client, coordinate sanitizer, UTC synthesizer, CLI downloader |
-| **Phase 2** | AI/ML + Feature Engineering | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | 29 features, weak supervision, Random Forest model, DBSCAN persistence, OSM Overpass, explainable risk score |
+| **Phase 2** | AI/ML + Feature Engineering | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | 29 features, weak supervision, Random Forest model, DBSCAN persistence, 127 industrial facilities, explainable risk score |
 | **Phase 3** | PostgreSQL + PostGIS Persistence & CRUD | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | SQLAlchemy 2 async models, Alembic migrations, GiST spatial indexes, bulk ingestion CLI, paginated spatial CRUD endpoints, DB health diagnostics |
-| **Phase 4** | Interactive Frontend Dashboard | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Real-time Leaflet GIS map, split/table/analytics views, telemetry KPIs, multi-criteria filtering, dark/light theme |
-| **Phase 5** | End-to-End Testing & Optimization | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Performance benchmarking (p95 < 40ms), load testing, zero regression (97/97 tests passing), offline OSM resilience |
+| **Phase 4** | Interactive Frontend Dashboard | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Real-time Leaflet GIS map, Stadia Dark tiles, Sentinel-2 optical imagery links, split/table/analytics views, telemetry KPIs, multi-criteria filtering |
+| **Phase 5** | End-to-End Testing & Optimization | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Performance benchmarking (p95 < 40ms), load testing, 50/50 passing tests (Async HTTPX integration suite + Vitest) |
 | **Phase 6** | Production Polish & Hackathon Demo | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Controlled SIH Demo Mode (4 real-DB scenarios), explainable risk engine, production build verification |
 
 ### 🌟 Phase Completion Status & Milestones
@@ -220,10 +223,7 @@ pytest -v
 
 | Component Tested | Test Module | Coverage & Checks | Status |
 |---|---|---|:---:|
-| **PostgreSQL Models** | `tests/backend/test_database_models.py` | ORM relationships, PostGIS geometry types, cascade rules, audit fields | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **Data Repositories** | `tests/backend/test_repositories.py` | Async CRUD, bounding-box spatial queries, radius filters, upserts | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **DB Ingestion Pipeline** | `tests/backend/test_ingestion_pipeline.py` | Real FIRMS CSV ingestion, DBSCAN cluster staging, database verification | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **Phase 3 Endpoints** | `tests/backend/test_phase3_endpoints.py` | `/health/db`, `/fires/observations` (bbox/filter), `/fires/classify` (persist=True) | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
+| **Backend Integration API** | `tests/backend/test_api_integration.py` | Full HTTPX async endpoint suite (`/health`, `/fires/classify`, `/fires/batch`, `/thermal/sources`, `/geospatial/context`) | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 | **Dataset Loader** | `tests/ml/test_data_loader.py` | Multi-file discovery, sensor parsing, temporal/spatial filtering, deduplication | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 | **Feature Engineering** | `tests/ml/test_feature_builder.py` | 29 spectral/spatial/temporal features, cyclical time encodings, single vector inference | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 | **Weak Supervision Labeler** | `tests/ml/test_weak_labeler.py` | Rule heuristics, physical thresholds, explanation generation, class balance | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
@@ -231,12 +231,10 @@ pytest -v
 | **Thermal Detector** | `tests/ml/test_thermal_detector.py` | Spatio-temporal DBSCAN, Haversine distance, persistence metrics, centroid calculation | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 | **Evaluation Metrics** | `tests/ml/test_evaluator_metrics.py` | Accuracy, Precision/Recall/F1, Confusion matrix, ROC-AUC calculation, report markdown | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 | **Risk Scorer** | `tests/ml/test_risk_scorer.py` | Multi-factor weighted score (0-100), hazard level thresholds, reason generation | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **OSM Overpass Service** | `tests/backend/test_osm_service.py` | Overpass query formulation, distance calculation, spatial quantization caching, offline fallback | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **Classification Service** | `tests/backend/test_classification_service.py` | End-to-end inference, batch processing, model readiness, OSM context enrichment | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **Phase 2 Endpoints** | `tests/backend/test_phase2_endpoints.py` | `/fires/classify`, `/fires/classify/batch`, `/fires/status`, `/thermal/sources`, `/thermal/clusters` | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **FIRMS Ingestion Service** | `tests/backend/test_firms_service.py` | API key auth, coordinate boundaries, days 1-10, URL generation, retry backoff | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 | **FIRMS Preprocessor** | `tests/ml/test_firms_preprocessor.py` | Schema validation, coordinate range cleaning, UTC timestamp synthesis, sensor normalization | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
-| **FastAPI Core & Health** | `tests/test_health.py` & `tests/backend/test_api.py` | Health probe `/api/v1/health/`, root endpoint, router status | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
+| **Geospatial Utilities** | `tests/ml/test_geo_utils.py` | Haversine distance matrix, bounding box inclusion, centroid calculation | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
+| **FastAPI Core & Health** | `tests/test_health.py` | Health probe `/api/v1/health/`, root endpoint, router status | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
+| **Frontend Zustand & UI** | `frontend/src/**/__tests__/*` | Vitest frontend state store tests, KPI card rendering, state transitions | <img src="https://img.shields.io/badge/Passing-green?style=flat-square"/> |
 
 ---
 
