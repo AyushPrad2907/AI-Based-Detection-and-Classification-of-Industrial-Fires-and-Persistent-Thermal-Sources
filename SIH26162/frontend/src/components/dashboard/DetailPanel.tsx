@@ -9,6 +9,7 @@ import {
   RotateCw,
   ArrowDown,
   Info,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -164,9 +165,22 @@ export function DetailPanel({
                 {isObservation ? obs?.satellite : 'DBSCAN CLUSTER'}
               </Badge>
             </div>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">
-              Lat: {lat.toFixed(5)}° | Lon: {lon.toFixed(5)}°
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-xs text-slate-400 font-mono">
+                Lat: {lat.toFixed(5)}° | Lon: {lon.toFixed(5)}°
+              </p>
+              {isObservation && obs && (
+                <a
+                  href={`https://apps.sentinel-hub.com/eo-browser/?zoom=14&lat=${lat}&lng=${lon}&themeId=DEFAULT-THEME&toTime=${new Date(obs.acq_datetime).toISOString().split('T')[0]}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 rounded hover:bg-cyan-500/20 transition-colors"
+                >
+                  <ExternalLink className="size-3" />
+                  Sentinel-2 View
+                </a>
+              )}
+            </div>
           </div>
         </div>
 

@@ -18,6 +18,16 @@ import type {
   SelectedEntity,
 } from '@/types'
 
+const escapeHtml = (str: string | number | undefined | null): string => {
+  if (str == null) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 interface CommandCenterMapProps {
   observations: FIRMSObservation[]
   clusters: PersistentThermalCluster[]
@@ -188,16 +198,16 @@ function CommandCenterMapInner({
               🔥 FIRMS Observation
             </span>
             <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">
-              ${obs.satellite}
+              ${escapeHtml(obs.satellite)}
             </span>
           </div>
           <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-slate-300 mb-2">
-            <div><span class="text-slate-400">Lat/Lon:</span> ${obs.latitude.toFixed(4)}, ${obs.longitude.toFixed(4)}</div>
-            <div><span class="text-slate-400">FRP:</span> <strong class="text-amber-400 font-mono">${obs.frp.toFixed(1)} MW</strong></div>
-            <div><span class="text-slate-400">Brightness:</span> ${obs.brightness_primary.toFixed(1)} K</div>
-            <div><span class="text-slate-400">Confidence:</span> ${obs.confidence_score.toFixed(0)}%</div>
+            <div><span class="text-slate-400">Lat/Lon:</span> ${escapeHtml(obs.latitude.toFixed(4))}, ${escapeHtml(obs.longitude.toFixed(4))}</div>
+            <div><span class="text-slate-400">FRP:</span> <strong class="text-amber-400 font-mono">${escapeHtml(obs.frp.toFixed(1))} MW</strong></div>
+            <div><span class="text-slate-400">Brightness:</span> ${escapeHtml(obs.brightness_primary.toFixed(1))} K</div>
+            <div><span class="text-slate-400">Confidence:</span> ${escapeHtml(obs.confidence_score.toFixed(0))}%</div>
             <div><span class="text-slate-400">Pass:</span> ${obs.daynight === 'N' ? '🌙 Night' : '☀️ Day'}</div>
-            <div><span class="text-slate-400">Time:</span> ${new Date(obs.acq_datetime).toLocaleDateString()}</div>
+            <div><span class="text-slate-400">Time:</span> ${escapeHtml(new Date(obs.acq_datetime).toLocaleDateString())}</div>
           </div>
           <div class="text-[10px] text-amber-400 font-medium bg-slate-900 p-1 rounded border border-slate-800 text-center">
             Click marker to inspect AI Classification & Risk Analysis
@@ -240,7 +250,7 @@ function CommandCenterMapInner({
         <div class="relative flex items-center justify-center cursor-pointer group" style="width: 28px; height: 28px;">
           <div class="absolute inset-0 rounded-full border border-cyan-400/60 animate-ping opacity-30"></div>
           <div class="w-6 h-6 rounded-full bg-cyan-950/90 border-2 border-cyan-400 flex items-center justify-center text-cyan-300 font-mono text-[10px] font-bold shadow-lg shadow-cyan-500/30 group-hover:scale-110 transition-transform">
-            ${cluster.observation_count}
+            ${escapeHtml(cluster.observation_count)}
           </div>
         </div>
       `
@@ -260,18 +270,18 @@ function CommandCenterMapInner({
         <div class="p-3 text-xs font-sans">
           <div class="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-1.5 mb-2">
             <span class="font-bold text-cyan-300 flex items-center gap-1">
-              🏭 Persistent Cluster #${cluster.cluster_id}
+              🏭 Persistent Cluster #${escapeHtml(cluster.cluster_id)}
             </span>
             <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold">
               ${cluster.is_persistent ? 'PERSISTENT' : 'TRANSIENT'}
             </span>
           </div>
           <div class="space-y-1 text-slate-300 mb-2">
-            <div><span class="text-slate-400">Centroid:</span> ${cluster.centroid_latitude.toFixed(4)}, ${cluster.centroid_longitude.toFixed(4)}</div>
-            <div><span class="text-slate-400">Satellite Passes:</span> <strong class="text-cyan-300">${cluster.observation_count} detections</strong></div>
-            <div><span class="text-slate-400">Mean FRP:</span> ${cluster.mean_frp_mw.toFixed(1)} MW (Max: ${cluster.max_frp_mw.toFixed(1)} MW)</div>
-            <div><span class="text-slate-400">Active Duration:</span> ${cluster.persistence_duration_days.toFixed(1)} days</div>
-            <div><span class="text-slate-400">Nocturnal Ratio:</span> ${(cluster.night_observation_ratio * 100).toFixed(0)}%</div>
+            <div><span class="text-slate-400">Centroid:</span> ${escapeHtml(cluster.centroid_latitude.toFixed(4))}, ${escapeHtml(cluster.centroid_longitude.toFixed(4))}</div>
+            <div><span class="text-slate-400">Satellite Passes:</span> <strong class="text-cyan-300">${escapeHtml(cluster.observation_count)} detections</strong></div>
+            <div><span class="text-slate-400">Mean FRP:</span> ${escapeHtml(cluster.mean_frp_mw.toFixed(1))} MW (Max: ${escapeHtml(cluster.max_frp_mw.toFixed(1))} MW)</div>
+            <div><span class="text-slate-400">Active Duration:</span> ${escapeHtml(cluster.persistence_duration_days.toFixed(1))} days</div>
+            <div><span class="text-slate-400">Nocturnal Ratio:</span> ${escapeHtml((cluster.night_observation_ratio * 100).toFixed(0))}%</div>
           </div>
           <div class="text-[10px] text-cyan-400 bg-slate-900 p-1 rounded border border-slate-800 text-center font-medium">
             Click marker to inspect full cluster telemetry
@@ -315,9 +325,9 @@ function CommandCenterMapInner({
 
       const popupContent = `
         <div class="p-2.5 text-xs font-sans">
-          <div class="font-bold text-indigo-300 mb-1">🏢 ${fac.name || 'Industrial Facility'}</div>
-          <div class="text-slate-400 text-[11px] mb-1">Type: <span class="text-slate-200">${fac.facility_type}</span></div>
-          ${fac.distance_meters > 0 ? `<div class="text-slate-400 text-[11px]">Distance: <span class="text-amber-400">${(fac.distance_meters / 1000).toFixed(2)} km</span></div>` : ''}
+          <div class="font-bold text-indigo-300 mb-1">🏢 ${escapeHtml(fac.name || 'Industrial Facility')}</div>
+          <div class="text-slate-400 text-[11px] mb-1">Type: <span class="text-slate-200">${escapeHtml(fac.facility_type)}</span></div>
+          ${fac.distance_meters > 0 ? `<div class="text-slate-400 text-[11px]">Distance: <span class="text-amber-400">${escapeHtml((fac.distance_meters / 1000).toFixed(2))} km</span></div>` : ''}
         </div>
       `
 
