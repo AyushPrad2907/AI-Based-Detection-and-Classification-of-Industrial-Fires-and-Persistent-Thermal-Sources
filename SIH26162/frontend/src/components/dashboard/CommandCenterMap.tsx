@@ -53,8 +53,9 @@ function CommandCenterMapInner({
   const facilitiesLayerRef = useRef<L.LayerGroup | null>(null)
   const selectedHighlightRef = useRef<L.LayerGroup | null>(null)
 
-  // CARTO API Key from environment
-  const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY || ''
+  // Official CARTO API Key
+  const cartoApiKey =
+    import.meta.env.VITE_CARTO_API_KEY || 'cb1_2isn_1_34a7ccbe5f0925dd9db8f869'
 
   // Layer Visibility Toggles
   const [showObservations, setShowObservations] = useState(true)
@@ -80,15 +81,12 @@ function CommandCenterMapInner({
       maxZoom: 18,
     })
 
-    // Official CARTO Dark Matter (Watermark-free with API key) or Esri fallback
-    const initialTileUrl = cartoApiKey
-      ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
-      : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+    // Official CARTO Dark Matter (Watermark-free with API key)
+    const initialTileUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?api_key=${cartoApiKey}`
 
     const initialTile = L.tileLayer(initialTileUrl, {
-      attribution: cartoApiKey
-        ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        : '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+      attribution:
+        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
       subdomains: 'abcd',
     }).addTo(map)
@@ -128,9 +126,7 @@ function CommandCenterMapInner({
     mapRef.current.removeLayer(tileLayerRef.current)
 
     if (activeTileLayer === 'carto') {
-      const url = cartoApiKey
-        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
-        : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+      const url = `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?api_key=${cartoApiKey}`
       tileLayerRef.current = L.tileLayer(url, {
         attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
         maxZoom: 19,
@@ -145,11 +141,9 @@ function CommandCenterMapInner({
         }
       ).addTo(mapRef.current)
     } else {
-      const osmUrl = cartoApiKey
-        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      const osmUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?api_key=${cartoApiKey}`
       tileLayerRef.current = L.tileLayer(osmUrl, {
-        attribution: '&copy; OpenStreetMap contributors',
+        attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
         maxZoom: 19,
         subdomains: 'abcd',
       }).addTo(mapRef.current)
