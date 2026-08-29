@@ -53,11 +53,14 @@ function CommandCenterMapInner({
   const facilitiesLayerRef = useRef<L.LayerGroup | null>(null)
   const selectedHighlightRef = useRef<L.LayerGroup | null>(null)
 
+  // CARTO API Key from environment
+  const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY || ''
+
   // Layer Visibility Toggles
   const [showObservations, setShowObservations] = useState(true)
   const [showClusters, setShowClusters] = useState(true)
   const [showFacilities, setShowFacilities] = useState(true)
-  const [activeTileLayer, setActiveTileLayer] = useState<'dark' | 'osm'>('dark')
+  const [activeTileLayer, setActiveTileLayer] = useState<'carto' | 'esri' | 'osm'>('carto')
   const tileLayerRef = useRef<L.TileLayer | null>(null)
 
   // Initialize Leaflet Map
@@ -77,17 +80,20 @@ function CommandCenterMapInner({
       maxZoom: 18,
     })
 
-    // Esri World Dark Gray Base (Open Source / No Key Required)
-    const darkTile = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      {
-        attribution:
-          '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ, NOAA, USGS',
-        maxZoom: 16,
-      }
-    ).addTo(map)
+    // Official CARTO Dark Matter (Watermark-free with API key) or Esri fallback
+    const initialTileUrl = cartoApiKey
+      ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+      : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
 
-    tileLayerRef.current = darkTile
+    const initialTile = L.tileLayer(initialTileUrl, {
+      attribution: cartoApiKey
+        ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        : '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+      maxZoom: 19,
+      subdomains: 'abcd',
+    }).addTo(map)
+
+    tileLayerRef.current = initialTile
 
     // Create Layer Groups
     markersLayerRef.current = L.layerGroup().addTo(map)
@@ -113,7 +119,7 @@ function CommandCenterMapInner({
       map.remove()
       mapRef.current = null
     }
-  }, [onBoundsChange])
+  }, [onBoundsChange, cartoApiKey])
 
   // Switch Base Tile Layer
   useEffect(() => {
@@ -121,7 +127,16 @@ function CommandCenterMapInner({
 
     mapRef.current.removeLayer(tileLayerRef.current)
 
-    if (activeTileLayer === 'dark') {
+    if (activeTileLayer === 'carto') {
+      const url = cartoApiKey
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+        : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+      tileLayerRef.current = L.tileLayer(url, {
+        attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        subdomains: 'abcd',
+      }).addTo(mapRef.current)
+    } else if (activeTileLayer === 'esri') {
       tileLayerRef.current = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
         {
@@ -130,15 +145,16 @@ function CommandCenterMapInner({
         }
       ).addTo(mapRef.current)
     } else {
-      tileLayerRef.current = L.tileLayer(
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-        }
-      ).addTo(mapRef.current)
+      const osmUrl = cartoApiKey
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      tileLayerRef.current = L.tileLayer(osmUrl, {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        subdomains: 'abcd',
+      }).addTo(mapRef.current)
     }
-  }, [activeTileLayer])
+  }, [activeTileLayer, cartoApiKey])
 
   // Render FIRMS Observation Markers
   useEffect(() => {
@@ -412,20 +428,31 @@ function CommandCenterMapInner({
           {/* Base Layer Switch */}
           <div className="pt-1.5 mt-1 border-t border-slate-800 flex gap-1">
             <button
-              onClick={() => setActiveTileLayer('dark')}
-              className={`flex-1 py-0.5 text-[10px] rounded font-mono ${
-                activeTileLayer === 'dark' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400'
+              onClick={() => setActiveTileLayer('carto')}
+              className={`flex-1 py-0.5 text-[10px] rounded font-mono transition-colors ${
+                activeTileLayer === 'carto' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
+              title="CARTO Dark Matter (HD with API Key)"
             >
-              Dark Matter
+              CARTO Dark
+            </button>
+            <button
+              onClick={() => setActiveTileLayer('esri')}
+              className={`flex-1 py-0.5 text-[10px] rounded font-mono transition-colors ${
+                activeTileLayer === 'esri' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Esri World Dark Gray Base"
+            >
+              Esri Dark
             </button>
             <button
               onClick={() => setActiveTileLayer('osm')}
-              className={`flex-1 py-0.5 text-[10px] rounded font-mono ${
-                activeTileLayer === 'osm' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400'
+              className={`flex-1 py-0.5 text-[10px] rounded font-mono transition-colors ${
+                activeTileLayer === 'osm' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
+              title="OpenStreetMap / Voyager Street View"
             >
-              Street (OSM)
+              Street
             </button>
           </div>
         </div>
