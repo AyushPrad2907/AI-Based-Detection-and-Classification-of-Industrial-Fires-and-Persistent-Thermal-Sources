@@ -71,10 +71,27 @@ def test_weak_labeler_rules():
     assert lbl == "uncertain_anomaly"
 
 
+def test_acute_industrial_fire_at_night():
+    labeler = WeakSupervisionLabeler()
+    rec = {
+        "latitude": 22.3564,
+        "longitude": 69.8322,
+        "frp": 120.0,
+        "confidence_score": 95.0,
+        "dist_to_industrial_km": 0.4,
+        "persistence_count": 1,
+        "is_night": 1.0,
+        "brightness_primary": 375.0,
+        "brightness_secondary": 298.0,
+    }
+    lbl, conf, reason = labeler.assign_label(rec)
+    assert lbl == "industrial_fire"
+
+
 def test_weak_labeler_dataframe_generation():
     labeler = WeakSupervisionLabeler()
     df = pd.DataFrame([
-        {"latitude": 20.0, "longitude": 80.0, "frp": 55.0, "dist_to_industrial_km": 0.2, "confidence_score": 90.0},
+        {"latitude": 20.0, "longitude": 80.0, "frp": 85.0, "dist_to_industrial_km": 0.2, "confidence_score": 90.0},
         {"latitude": 22.0, "longitude": 82.0, "frp": 8.0, "dist_to_industrial_km": 10.0, "confidence_score": 80.0},
     ])
     df_labeled = labeler.generate_labels(df)
@@ -82,3 +99,5 @@ def test_weak_labeler_dataframe_generation():
     assert "label_confidence" in df_labeled.columns
     assert "label_reason" in df_labeled.columns
     assert len(df_labeled) == 2
+    assert df_labeled["weak_label"].iloc[0] == "industrial_fire"
+

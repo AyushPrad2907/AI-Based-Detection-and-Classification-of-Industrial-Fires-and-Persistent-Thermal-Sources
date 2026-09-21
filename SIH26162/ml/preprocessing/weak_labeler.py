@@ -80,15 +80,23 @@ class WeakSupervisionLabeler:
                 "Low satellite detection confidence (<35%) or negligible radiative intensity."
             )
 
-        # Rule 2: Persistent Industrial Source (co-located across passes or near industrial facility)
+        # Rule 2: Industrial Structural Fire (Acute high-intensity thermal burst in industrial zone)
         is_near_industrial = dist_ind_km <= self.industrial_dist_threshold_km
         is_persistent = persist_count >= self.min_persistent_observations or persist_days >= 1.0
 
+        if is_near_industrial and frp >= self.acute_fire_frp_threshold_mw:
+            return (
+                "industrial_fire",
+                0.90,
+                f"Acute severe thermal output (FRP {frp:.1f} MW) within industrial perimeter ({dist_ind_km:.2f}km)."
+            )
+
+        # Rule 3: Persistent Industrial Source (co-located across passes or near industrial facility at routine operational power)
         if is_near_industrial and (is_persistent or is_night or frp < self.acute_fire_frp_threshold_mw):
             return (
                 "persistent_industrial",
                 0.85,
-                f"Located {dist_ind_km:.2f}km from industrial site with steady recurrence ({persist_count} observations)."
+                f"Located {dist_ind_km:.2f}km from industrial site with steady operational thermal output ({persist_count} observations, FRP {frp:.1f} MW)."
             )
 
         if is_persistent and (is_night or bright_diff > 30.0) and frp < self.acute_fire_frp_threshold_mw:
@@ -96,14 +104,6 @@ class WeakSupervisionLabeler:
                 "persistent_industrial",
                 0.80,
                 f"Spatio-temporally persistent thermal hotspot observed {persist_count} times across {persist_days:.1f} days."
-            )
-
-        # Rule 3: Industrial Structural Fire (Acute high-intensity thermal burst in industrial zone)
-        if is_near_industrial and frp >= self.acute_fire_frp_threshold_mw:
-            return (
-                "industrial_fire",
-                0.88,
-                f"Acute severe thermal output (FRP {frp:.1f} MW) within industrial perimeter ({dist_ind_km:.2f}km)."
             )
 
         # Rule 4: Wildfire / Vegetation Fire (High power, non-industrial, large spectral diff)
