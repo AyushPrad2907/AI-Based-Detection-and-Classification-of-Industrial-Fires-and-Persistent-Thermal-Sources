@@ -10,10 +10,12 @@ import {
   ArrowDown,
   Info,
   ExternalLink,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ApiService } from '@/lib/api'
+import { SitrepModal } from './SitrepModal'
 import type {
   SelectedEntity,
   FIRMSObservation,
@@ -21,6 +23,7 @@ import type {
   FireClassificationResult,
   IndustrialContextResponse,
 } from '@/types'
+
 
 interface DetailPanelProps {
   selectedEntity: SelectedEntity | null
@@ -72,8 +75,10 @@ export function DetailPanel({
   const [isQueryingOSM, setIsQueryingOSM] = useState(false)
   const [persistToDB, setPersistToDB] = useState(false)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
+  const [isSitrepOpen, setIsSitrepOpen] = useState(false)
 
   const isObservation = selectedEntity?.type === 'observation'
+
   const isCluster = selectedEntity?.type === 'cluster'
 
   const obs = isObservation ? (selectedEntity?.data as FIRMSObservation) : null
@@ -512,6 +517,15 @@ export function DetailPanel({
             {isInferencing ? 'Running Inference...' : 'Run Live AI Classification & Risk Assessment'}
           </Button>
 
+          <Button
+            onClick={() => setIsSitrepOpen(true)}
+            variant="outline"
+            className="w-full border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-semibold text-xs h-9"
+          >
+            <FileText className="size-3.5 mr-1.5 text-rose-400" />
+            Generate Defense SITREP Report
+          </Button>
+
           {saveSuccessMessage && (
             <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded p-2 text-center">
               ✓ {saveSuccessMessage}
@@ -519,6 +533,17 @@ export function DetailPanel({
           )}
         </div>
       )}
+
+      {/* Defense SITREP Report Modal */}
+      <SitrepModal
+        isOpen={isSitrepOpen}
+        onClose={() => setIsSitrepOpen(false)}
+        observation={obs}
+        cluster={cluster}
+        classification={classification}
+        industrialContext={industrialContext}
+      />
     </div>
   )
+
 }

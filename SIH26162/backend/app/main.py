@@ -18,6 +18,7 @@ if str(_BACKEND_DIR) not in sys.path:
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(1, str(_REPO_ROOT))
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -27,6 +28,27 @@ from app.config import settings
 from app.api.v1.router import api_v1_router
 
 logger = logging.getLogger("api")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown routines."""
+    try:
+        from app.core.database import async_session
+        from app.repositories.facility_repository import IndustrialFacilityRepository
+        from app.services.facility_seeder import seed_industrial_facilities
+
+        async with async_session() as session:
+            repo = IndustrialFacilityRepository(session)
+            count = await repo.count_facilities()
+            if count == 0:
+                logger.info("Industrial facilities table empty. Auto-seeding strategic Indian facilities...")
+                await seed_industrial_facilities(session)
+            else:
+                logger.info(f"PostGIS industrial facilities verified: {count} assets indexed.")
+    except Exception as e:
+        logger.debug(f"Facility auto-seeder startup check notice (offline/mock DB mode): {e}")
+    yield
 
 
 def create_app() -> FastAPI:
@@ -43,7 +65,9 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
+
 
     # -------------------------------------------------------------------------
     # CORS Middleware

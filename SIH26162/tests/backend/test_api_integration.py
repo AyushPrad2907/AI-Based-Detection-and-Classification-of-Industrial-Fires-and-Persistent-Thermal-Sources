@@ -259,3 +259,44 @@ async def test_geospatial_industrial_context_validation_error(async_client):
     }
     response = await async_client.post("/api/v1/geospatial/industrial-context", json=payload)
     assert response.status_code == 422
+
+
+@pytest.mark.anyio
+@patch("app.api.v1.endpoints.geospatial.seed_industrial_facilities")
+async def test_geospatial_seed_facilities(mock_seed, async_client):
+    mock_seed.return_value = {
+        "status": "success",
+        "message": "Successfully seeded 127 industrial facilities into PostGIS.",
+        "total_seeded": 127,
+        "categories": {"refinery": 23, "power_plant": 45},
+    }
+    response = await async_client.post("/api/v1/geospatial/seed-facilities")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["total_seeded"] == 127
+    assert data["categories"]["refinery"] == 23
+
+
+@pytest.mark.anyio
+@patch("app.api.v1.endpoints.geospatial.IndustrialFacilityRepository.list_facilities")
+async def test_geospatial_list_facilities(mock_list, async_client):
+    from unittest.mock import MagicMock
+    mock_fac = MagicMock()
+    mock_fac.id = 1
+    mock_fac.osm_id = 10001
+    mock_fac.osm_type = "node"
+    mock_fac.name = "Jamnagar Refinery Complex"
+    mock_fac.facility_type = "refinery"
+    mock_fac.latitude = 22.356
+    mock_fac.longitude = 69.865
+    mock_fac.tags = {"operator": "Reliance"}
+
+    mock_list.return_value = [mock_fac]
+    response = await async_client.get("/api/v1/geospatial/facilities?limit=10")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Jamnagar Refinery Complex"
+    assert data[0]["facility_type"] == "refinery"
+

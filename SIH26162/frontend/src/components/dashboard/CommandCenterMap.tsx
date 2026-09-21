@@ -68,6 +68,7 @@ function CommandCenterMapInner({
   const facilitiesLayerRef = useRef<L.LayerGroup | null>(null)
   const selectedHighlightRef = useRef<L.LayerGroup | null>(null)
   const radarBeaconLayerRef = useRef<L.LayerGroup | null>(null)
+  const heatmapLayerRef = useRef<L.LayerGroup | null>(null)
 
   // Temporal Playback State (Fix 5)
   const [selectedDateIndex, setSelectedDateIndex] = useState<number | null>(null)
@@ -98,6 +99,8 @@ function CommandCenterMapInner({
   const [showObservations, setShowObservations] = useState(true)
   const [showClusters, setShowClusters] = useState(true)
   const [showFacilities, setShowFacilities] = useState(true)
+  const [showHeatmap, setShowHeatmap] = useState(false)
+
   type BasemapType = 'stadia' | 'satellite' | 'sentinel' | 'osm'
   const [activeTileLayer, setActiveTileLayer] = useState<BasemapType>('stadia')
   const tileLayerRef = useRef<L.TileLayer | null>(null)
@@ -158,6 +161,7 @@ function CommandCenterMapInner({
     tileLayerRef.current = initialTile
 
     // Create Layer Groups
+    heatmapLayerRef.current = L.layerGroup().addTo(map)
     markersLayerRef.current = L.layerGroup().addTo(map)
     clustersLayerRef.current = L.layerGroup().addTo(map)
     facilitiesLayerRef.current = L.layerGroup().addTo(map)
@@ -181,9 +185,11 @@ function CommandCenterMapInner({
     return () => {
       map.remove()
       mapRef.current = null
+      heatmapLayerRef.current = null
       radarBeaconLayerRef.current = null
     }
   }, [onBoundsChange])
+
 
   // Switch Base Tile Layer
   useEffect(() => {
@@ -311,7 +317,52 @@ function CommandCenterMapInner({
     })
   }, [activeObservations, showObservations, onSelectEntity])
 
+  // Render All-India Macro Thermal Risk Heatmap (Fix 7)
+  useEffect(() => {
+    if (!heatmapLayerRef.current) return
+    heatmapLayerRef.current.clearLayers()
+
+    if (!showHeatmap) return
+
+    activeObservations.forEach((obs) => {
+      const frp = Math.max(obs.frp || 10, 5)
+      // Radius scaled with Fire Radiative Power (MW)
+      const outerRadius = Math.min(38000, 12000 + frp * 180)
+      const midRadius = outerRadius * 0.52
+      const coreRadius = outerRadius * 0.22
+
+      // Outer radiation dispersion field (crimson)
+      const outerCircle = L.circle([obs.latitude, obs.longitude], {
+        radius: outerRadius,
+        stroke: false,
+        fillColor: '#dc2626',
+        fillOpacity: 0.08,
+      })
+
+      // Mid intensity thermal field (orange/amber)
+      const midCircle = L.circle([obs.latitude, obs.longitude], {
+        radius: midRadius,
+        stroke: false,
+        fillColor: '#f97316',
+        fillOpacity: 0.18,
+      })
+
+      // Hot core combustion center (gold/yellow)
+      const coreCircle = L.circle([obs.latitude, obs.longitude], {
+        radius: coreRadius,
+        stroke: false,
+        fillColor: '#fde047',
+        fillOpacity: 0.38,
+      })
+
+      heatmapLayerRef.current?.addLayer(outerCircle)
+      heatmapLayerRef.current?.addLayer(midCircle)
+      heatmapLayerRef.current?.addLayer(coreCircle)
+    })
+  }, [activeObservations, showHeatmap])
+
   // Render Persistent Thermal Clusters
+
   useEffect(() => {
     if (!clustersLayerRef.current) return
     clustersLayerRef.current.clearLayers()
@@ -486,6 +537,20 @@ function CommandCenterMapInner({
             </div>
             {showObservations ? <Eye className="size-3 text-amber-400" /> : <EyeOff className="size-3 text-slate-500" />}
           </button>
+
+          <button
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`flex items-center justify-between gap-2 px-2 py-1 rounded text-left transition-colors ${
+              showHeatmap ? 'bg-rose-500/20 text-rose-300 font-medium' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="text-rose-400 text-xs leading-none">🔥</span>
+              <span>Thermal Risk Heatmap</span>
+            </div>
+            {showHeatmap ? <Eye className="size-3 text-rose-400" /> : <EyeOff className="size-3 text-slate-500" />}
+          </button>
+
 
           <button
             onClick={() => setShowClusters(!showClusters)}

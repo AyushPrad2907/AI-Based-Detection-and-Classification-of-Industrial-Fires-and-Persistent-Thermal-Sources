@@ -6,14 +6,20 @@ and geographic proximity lookups.
 """
 
 import logging
-from typing import Any, Dict
-from fastapi import APIRouter, HTTPException, Query, status
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.geospatial import (
     IndustrialContextRequest,
     IndustrialContextResponse,
     IndustrialFacilitySchema,
+    IndustrialFacilityRecord,
+    SeedFacilitiesResponse,
 )
+from app.core.database import get_db
+from app.repositories.facility_repository import IndustrialFacilityRepository
+from app.services.facility_seeder import seed_industrial_facilities
 from app.services.osm_service import OSMService
 
 logger = logging.getLogger(__name__)
@@ -27,16 +33,82 @@ async def list_geospatial_data():
     """Summary of geospatial context and OSM integration capabilities."""
     return {
         "service": "SIH26162 Geospatial Analytics & OpenStreetMap Context",
-        "status": "placeholder",
+        "status": "active",
         "features": [
             "Industrial infrastructure proximity querying",
+            "PostGIS 127 Strategic Indian Industrial Assets Gazetteer",
             "Power plants, refineries, chemical works, and foundries detection",
             "Spatial caching and rate-limiting protection",
         ],
         "endpoints": {
             "industrial_context": "POST /api/v1/geospatial/industrial-context",
+            "facilities": "GET /api/v1/geospatial/facilities",
+            "seed_facilities": "POST /api/v1/geospatial/seed-facilities",
         },
     }
+
+
+@router.post(
+    "/seed-facilities",
+    response_model=SeedFacilitiesResponse,
+    summary="Seed 127 strategic Indian industrial facilities into PostGIS",
+    status_code=status.HTTP_200_OK,
+)
+async def seed_facilities_endpoint(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Seeds curated strategic Indian industrial facilities (refineries, steel plants,
+    thermal power plants, petrochemical zones) from data/industrial_facilities_india.json
+    into the PostGIS industrial_facilities table.
+    """
+    res = await seed_industrial_facilities(db)
+    if res.get("status") == "error":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=res.get("message", "Seeding failed"),
+        )
+    return SeedFacilitiesResponse(**res)
+
+
+@router.get(
+    "/facilities",
+    response_model=List[IndustrialFacilityRecord],
+    summary="List industrial facilities stored in PostGIS",
+    status_code=status.HTTP_200_OK,
+)
+async def list_facilities_endpoint(
+    facility_type: Optional[str] = Query(None, description="Filter by facility type (e.g., refinery, power_plant, steel_mill)"),
+    limit: int = Query(200, ge=1, le=1000, description="Max facilities to return"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retrieve indexed strategic industrial facilities from the PostGIS database.
+    """
+    try:
+        repo = IndustrialFacilityRepository(db)
+        facilities = await repo.list_facilities(facility_type=facility_type, limit=limit, offset=offset)
+        return [
+            IndustrialFacilityRecord(
+                id=f.id,
+                osm_id=f.osm_id,
+                osm_type=f.osm_type,
+                name=f.name,
+                facility_type=f.facility_type,
+                latitude=f.latitude,
+                longitude=f.longitude,
+                tags=f.tags or {},
+            )
+            for f in facilities
+        ]
+    except Exception as err:
+        logger.error(f"Error listing facilities: {err}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch industrial facilities: {str(err)}",
+        )
+
 
 
 @router.post(

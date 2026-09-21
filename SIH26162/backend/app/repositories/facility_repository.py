@@ -61,3 +61,24 @@ class IndustrialFacilityRepository(BaseRepository[IndustrialFacility]):
 
         await self.session.flush()
         return count
+
+    async def count_facilities(self) -> int:
+        """Return the total count of facilities stored in PostGIS."""
+        stmt = select(func.count(IndustrialFacility.id))
+        result = await self.session.execute(stmt)
+        return result.scalar_one() or 0
+
+    async def list_facilities(
+        self,
+        facility_type: Optional[str] = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> Sequence[IndustrialFacility]:
+        """Fetch list of industrial facilities with optional type filtering."""
+        stmt = select(IndustrialFacility)
+        if facility_type:
+            stmt = stmt.where(IndustrialFacility.facility_type == facility_type)
+        stmt = stmt.order_by(IndustrialFacility.name.asc()).offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+

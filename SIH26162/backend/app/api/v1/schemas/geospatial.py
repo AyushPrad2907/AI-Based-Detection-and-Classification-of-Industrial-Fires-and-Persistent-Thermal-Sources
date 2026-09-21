@@ -38,3 +38,26 @@ class IndustrialContextResponse(BaseModel):
     query_longitude: float
     search_radius_m: int
     status: str
+
+
+class IndustrialFacilityRecord(BaseModel):
+    """Schema representing an industrial facility stored in PostGIS."""
+    id: int
+    osm_id: Optional[int] = None
+    osm_type: Optional[str] = None
+    name: str
+    facility_type: str
+    latitude: float
+    longitude: float
+    tags: Optional[Dict[str, Any]] = None
+
+    model_config = {"from_attributes": True}
+
+
+class SeedFacilitiesResponse(BaseModel):
+    """Response schema for industrial facility seeding."""
+    status: str
+    message: str
+    total_seeded: int
+    categories: Dict[str, int] = {}
+
