@@ -161,11 +161,11 @@ SIH26162/
 |:---:|---|:---:|---|
 | **Phase 0** | Foundation & Architecture | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Directory layout, FastAPI skeleton, Docker Compose, PostGIS schema scaffolding |
 | **Phase 1** | Real NASA FIRMS Data Ingestion | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Resilient FIRMS API client, coordinate sanitizer, UTC synthesizer, CLI downloader |
-| **Phase 2** | Machine Learning & Classification | <img src="https://img.shields.io/badge/Status-Planned-lightgrey?style=flat-square"/> | Feature engineering, OSM Overpass enrichment, PyTorch thermal anomaly classifier |
-| **Phase 3** | Backend Services & Database CRUD | <img src="https://img.shields.io/badge/Status-Planned-lightgrey?style=flat-square"/> | PostGIS spatial queries, active fire feeds, alerts API, auth & RBAC |
-| **Phase 4** | Interactive Frontend Dashboard | <img src="https://img.shields.io/badge/Status-Planned-lightgrey?style=flat-square"/> | MapLibre/Leaflet heatmaps, classification overlays, live telemetry charts |
-| **Phase 5** | End-to-End Testing & Optimization | <img src="https://img.shields.io/badge/Status-Planned-lightgrey?style=flat-square"/> | Performance benchmarking, load testing, precision/recall spatial validation |
-| **Phase 6** | Deployment & Hackathon Demo | <img src="https://img.shields.io/badge/Status-Planned-lightgrey?style=flat-square"/> | Production cloud staging, presentation deck, automated CI/CD pipeline |
+| **Phase 2** | Machine Learning & Classification | <img src="https://img.shields.io/badge/Status-Completed-lightgrey?style=flat-square"/> | Feature engineering, OSM Overpass enrichment, PyTorch thermal anomaly classifier |
+| **Phase 3** | Backend Services & Database CRUD | <img src="https://img.shields.io/badge/Status-Completed-lightgrey?style=flat-square"/> | PostGIS spatial queries, active fire feeds, alerts API, auth & RBAC |
+| **Phase 4** | Interactive Frontend Dashboard | <img src="https://img.shields.io/badge/Status-Completed-lightgrey?style=flat-square"/> | MapLibre/Leaflet heatmaps, classification overlays, live telemetry charts |
+| **Phase 5** | End-to-End Testing & Optimization | <img src="https://img.shields.io/badge/Status-Completed-lightgrey?style=flat-square"/> | Performance benchmarking, load testing, precision/recall spatial validation |
+| **Phase 6** | Deployment & Hackathon Demo | <img src="https://img.shields.io/badge/Status-Completed-lightgrey?style=flat-square"/> | Production cloud staging, presentation deck, automated CI/CD pipeline |
 
 ---
 
