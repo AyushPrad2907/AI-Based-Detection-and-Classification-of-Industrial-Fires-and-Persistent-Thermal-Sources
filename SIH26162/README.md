@@ -62,42 +62,47 @@ Industrial fires, uncontrolled flare emissions, and unmonitored thermal anomalie
 
 ```mermaid
 flowchart TB
-    subgraph S1["🛰️ Data Ingestion & Imagery Layer (Phase 1)"]
-        FIRMS["NASA FIRMS API<br/>(VIIRS 375m / MODIS 1km)"]
-        SENTINEL["Sentinel-2 EO Browser<br/>(Optical Satellite Imagery Link)"]
+    subgraph S1["🛰️ Satellite Telemetry & Optical Imagery Layer"]
+        FIRMS["NASA FIRMS Ingestion<br/>(VIIRS 375m / MODIS 1km)"]
+        SENTINEL["Copernicus Sentinel-2 Cloudless WMTS<br/>+ Esri High-Res Earth Imagery"]
         GAZETTEER["127 Critical Facilities DB<br/>(Refineries, Power, Steel, LNG)"]
-        CLI["CLI Ingestion Pipeline<br/>(scripts/download_firms_data.py)"]
-        RAW_DB[("Raw Ingestion Storage<br/>data/raw/firms/")]
+        POLLER["Autonomous Satellite Poller<br/>(Indian Industrial Belts Ingestion)"]
     end
 
-    subgraph S2["⚡ Preprocessing & Feature Engineering (Phase 1 & 2)"]
+    subgraph S2["⚡ Preprocessing & Feature Engineering"]
         PRE["FIRMS Preprocessor<br/>(ml/preprocessing/firms_preprocessor.py)"]
         LOADER["Dataset Loader<br/>(ml/utils/data_utils.py)"]
         FEAT["FeatureBuilder (29 Features)<br/>(ml/preprocessing/feature_builder.py)"]
-        PROC_DB[("Processed Feature Store<br/>data/processed/firms/")]
+        SYNTH["150 Physics-Informed Synthetics<br/>(Acute Industrial Fires FRP ≥ 80MW)"]
     end
 
-    subgraph S3["🧠 Machine Learning & Persistence (Phase 2 & 3)"]
+    subgraph S3["🧠 Machine Learning & Spatio-Temporal AI"]
         THERMAL["ThermalDetector (Spatio-Temporal DBSCAN)<br/>(ml/models/thermal_detector.py)"]
         LABELER["WeakSupervisionLabeler<br/>(ml/preprocessing/weak_labeler.py)"]
-        CLS["FireClassifier (Random Forest / GBDT)<br/>(ml/models/fire_classifier.py)"]
-        RISK["Explainable RiskScorer (0-100 Score)<br/>(ml/inference/risk_scorer.py)"]
+        CLS["FireClassifier (Random Forest 5-Class)<br/>(99.01% Acc • 1.000 F1 on Industrial Fire)"]
+        RISK["Explainable RiskScorer (0-100 Score)<br/>(5-Factor Physics Decomposition)"]
     end
 
-    subgraph S4["🚀 Serving & Persistence Layer (Phase 3 & 4)"]
-        FASTAPI["FastAPI REST Backend<br/>(/api/v1/fires/observations, /thermal/sources, /classify)"]
-        POSTGIS[("PostgreSQL 16 + PostGIS 3.4<br/>(SQLAlchemy 2 Async + Alembic)")]
-        REACT["React 19 + Leaflet UI Command Center<br/>(Sentinel-2 Optical View + Stadia Dark GIS)"]
+    subgraph S4["🚀 Tactical Serving & Real-Time Defense UI"]
+        FASTAPI["FastAPI High-Throughput REST<br/>(/fires/observations, /thermal/sources, /classify)"]
+        SSE_BROKER["Server-Sent Events (SSE) Stream<br/>(GET /api/v1/alerts/stream)"]
+        POSTGIS[("PostgreSQL 16 + PostGIS 3.4<br/>(SQLAlchemy 2 Async + GiST Indexing)")]
+        REACT["React 19 + Leaflet Command Center<br/>(Live Radar Audio • Timeline Scrubber)"]
     end
 
-    FIRMS --> CLI --> RAW_DB --> PRE --> PROC_DB --> LOADER
-    LOADER --> THERMAL --> FEAT
+    FIRMS --> PRE --> LOADER
+    POLLER --> PRE
     GAZETTEER --> FEAT
+    SYNTH --> FEAT
+    LOADER --> THERMAL --> FEAT
     FEAT --> LABELER --> CLS
     CLS --> FASTAPI
+    CLS --> SSE_BROKER
     THERMAL --> FASTAPI
     RISK --> FASTAPI
-    SENTINEL -.-> REACT
+    RISK --> SSE_BROKER
+    SENTINEL --> REACT
+    SSE_BROKER --> REACT
     FASTAPI <--> POSTGIS
     FASTAPI <--> REACT
 ```
@@ -108,13 +113,13 @@ flowchart TB
 
 | Layer | Primary Technologies | Capabilities |
 |---|---|---|
-| **Satellite & Telemetry** | `NASA FIRMS REST API`, `VIIRS (SNPP/NOAA-20/21)`, `MODIS`, `Sentinel-2 EO Browser` | 375m & 1km active fire thermal anomalies, Brightness Temperature (Kelvin), Fire Radiative Power (MW), Sentinel-2 optical band cross-verification |
-| **Geospatial & Spatial Context** | `127 Indian Infrastructure Facilities DB`, `GeoPandas`, `Shapely`, `Haversine Metric` | 127 verified industrial sites (Refineries, Thermal Power, Steel, LNG, Cement), proximity buffers, spatial distance calculations |
-| **Machine Learning & AI** | `scikit-learn`, `NumPy`, `Pandas`, `SciPy`, `Joblib` | Multi-class thermal classification, DBSCAN spatio-temporal clustering, weak supervision, explainable risk scoring |
-| **Backend & Microservices** | `FastAPI`, `Uvicorn`, `Pydantic V2`, `HTTPX`, `AsyncPG` | High-throughput asynchronous endpoints, rate-limited resilient retry clients |
+| **Satellite & Telemetry** | `NASA FIRMS REST API`, `VIIRS (SNPP/NOAA-20/21)`, `MODIS`, `Copernicus Sentinel-2 Cloudless`, `Esri World Imagery` | 375m & 1km active fire thermal anomalies, Brightness Temperature (Kelvin), Fire Radiative Power (MW), embedded Sentinel-2 optical WMTS imagery |
+| **Geospatial & Spatial Context** | `127 Indian Infrastructure Facilities DB`, `GeoPandas`, `Shapely`, `Haversine Metric` | 127 verified industrial sites (Refineries, Thermal Power, Steel, LNG, Cement), proximity buffers, vectorized distance matrix calculations |
+| **Machine Learning & AI** | `scikit-learn`, `NumPy`, `Pandas`, `SciPy`, `Joblib` | Multi-class thermal classification (99.01% Acc), DBSCAN spatio-temporal clustering, weak supervision, physics-informed synthetic augmentation, explainable risk scoring |
+| **Backend & Streaming** | `FastAPI`, `Server-Sent Events (SSE)`, `Uvicorn`, `Pydantic V2`, `HTTPX`, `AsyncPG` | Real-time push alert stream, autonomous satellite poller, high-throughput asynchronous endpoints, rate-limited resilient retry clients |
 | **Database & GIS** | `PostgreSQL 16`, `PostGIS 3.4`, `SQLAlchemy 2 (Async)`, `GeoAlchemy2`, `Alembic` | Spatial indexing (GiST R-Tree), coordinate geometry, multi-criteria filtering, B-Tree indexes |
-| **Frontend & Analytics** | `React 19`, `TypeScript`, `Vite`, `Tailwind CSS 4`, `Leaflet`, `Zustand` | Real-time interactive spatial map, Stadia Dark GIS, Sentinel-2 link integration, thermal source breakdown, SIH Demo Mode |
-| **DevOps & Testing** | `Docker`, `Docker Compose`, `Pytest`, `AnyIO`, `Vitest` | Containerized microservices, migration versioning, 50 passing Python & Vitest integration tests |
+| **Frontend & Analytics** | `React 19`, `TypeScript`, `Vite`, `Tailwind CSS 4`, `Leaflet`, `Zustand`, `Web Audio API` | Live tactical alert radar with synthesized audio chime, temporal timeline playback scrubber, 4-tier basemap switcher, SIH Demo Mode |
+| **DevOps & Testing** | `Docker`, `Docker Compose`, `Pytest`, `AnyIO`, `Vitest` | Containerized microservices, migration versioning, 57 passing Python & Vitest integration tests |
 
 ---
 
@@ -127,8 +132,9 @@ flowchart TB
 | **Phase 2** | AI/ML + Feature Engineering | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | 29 features, weak supervision, Random Forest model, DBSCAN persistence, 127 industrial facilities, explainable risk score |
 | **Phase 3** | PostgreSQL + PostGIS Persistence & CRUD | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | SQLAlchemy 2 async models, Alembic migrations, GiST spatial indexes, bulk ingestion CLI, paginated spatial CRUD endpoints, DB health diagnostics |
 | **Phase 4** | Interactive Frontend Dashboard | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Real-time Leaflet GIS map, Stadia Dark tiles, Sentinel-2 optical imagery links, split/table/analytics views, telemetry KPIs, multi-criteria filtering |
-| **Phase 5** | End-to-End Testing & Optimization | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Performance benchmarking (p95 < 40ms), load testing, 50/50 passing tests (Async HTTPX integration suite + Vitest) |
-| **Phase 6** | Production Polish & Hackathon Demo | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Controlled SIH Demo Mode (4 real-DB scenarios), explainable risk engine, production build verification |
+| **Phase 5** | End-to-End Testing & Optimization | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Performance benchmarking (p95 < 40ms), load testing, 57/57 passing tests (Async HTTPX integration suite + Vitest) |
+| **Phase 6** | Synthetic Data & Optical Imagery (Phase I Upgrade) | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | 150 synthetic acute industrial fires, retrained 5-class model (99.01% Acc), embedded Sentinel-2 Cloudless & Esri satellite tiles |
+| **Phase 7** | Real-Time Defense Ingestion & Alert Radar (Phase II Upgrade) | <img src="https://img.shields.io/badge/Status-Completed-success?style=flat-square"/> | Live Server-Sent Events (SSE) `/alerts/stream`, autonomous satellite poller over Indian industrial zones, tactical audio radar chime, temporal playback scrubber |
 
 ### 🌟 Phase Completion Status & Milestones
 
@@ -177,6 +183,22 @@ flowchart TB
 ---
 
 ## 🚀 Quickstart Guide
+
+### ⚡ One-Command Full Stack Launch (Recommended via Docker)
+
+Start the entire intelligence platform (PostGIS 16 Database, FastAPI AI Backend, and React Tactical Dashboard) with a single command:
+
+```bash
+docker compose up --build -d
+```
+
+- 🌐 **Command Center Dashboard**: [http://localhost:5173/dashboard](http://localhost:5173/dashboard)
+- ⚡ **Interactive OpenAPI Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- 🗄️ **Database & PostGIS Health Diagnostic**: `GET http://localhost:8000/api/v1/health/db`
+
+---
+
+### 💻 Native Local Development Setup
 
 ### 1. Configure Environment
 
