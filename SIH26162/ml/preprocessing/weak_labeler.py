@@ -16,6 +16,7 @@ and prototype validation. They are NEVER represented as field-verified ground tr
 """
 
 import logging
+import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -67,7 +68,14 @@ class WeakSupervisionLabeler:
         bright_sec = float(record.get("brightness_secondary", 290.0) or 290.0)
         bright_diff = bright_prim - bright_sec
 
-        dist_ind_km = float(record.get("dist_to_industrial_km", 10.0) if record.get("dist_to_industrial_km") is not None else 10.0)
+        dist_raw = record.get("dist_to_industrial_km")
+        try:
+            dist_ind_km = float(dist_raw) if dist_raw is not None and not pd.isna(dist_raw) else 10.0
+        except (ValueError, TypeError):
+            dist_ind_km = 10.0
+        if math.isnan(dist_ind_km):
+            dist_ind_km = 10.0
+
         is_night = float(record.get("is_night", 0.0) or 0.0) >= 0.5
         persist_count = int(record.get("persistence_count", 1) or 1)
         persist_days = float(record.get("persistence_days", 0.0) or 0.0)
