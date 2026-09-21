@@ -67,22 +67,26 @@ function CommandCenterMapInner({
   const [showObservations, setShowObservations] = useState(true)
   const [showClusters, setShowClusters] = useState(true)
   const [showFacilities, setShowFacilities] = useState(true)
-  const [activeTileLayer, setActiveTileLayer] = useState<'stadia' | 'esri' | 'osm'>('stadia')
+  type BasemapType = 'stadia' | 'satellite' | 'sentinel' | 'osm'
+  const [activeTileLayer, setActiveTileLayer] = useState<BasemapType>('stadia')
   const tileLayerRef = useRef<L.TileLayer | null>(null)
 
-  // Basemap tile configs — all completely free, no API key required
-  const TILE_LAYERS = {
+  // Basemap tile configs — free high-resolution and optical satellite layers
+  const TILE_LAYERS: Record<BasemapType, { url: string; attribution: string; maxZoom: number; subdomains?: string }> = {
     stadia: {
       url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
       attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 20,
-      subdomains: '',
     },
-    esri: {
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    satellite: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: '&copy; Esri &mdash; High-Resolution Earth Imagery',
+      maxZoom: 19,
+    },
+    sentinel: {
+      url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg',
+      attribution: '&copy; <a href="https://maps.eox.at/">EOX IT Services GmbH</a> &copy; <a href="https://sentinel.esa.int/">Copernicus Sentinel-2 Cloudless</a>',
       maxZoom: 16,
-      subdomains: '',
     },
     osm: {
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -429,31 +433,40 @@ function CommandCenterMapInner({
           )}
 
           {/* Base Layer Switch */}
-          <div className="pt-1.5 mt-1 border-t border-slate-800 flex gap-1">
+          <div className="pt-1.5 mt-1 border-t border-slate-800 grid grid-cols-2 gap-1">
             <button
               onClick={() => setActiveTileLayer('stadia')}
-              className={`flex-1 py-0.5 text-[10px] rounded font-mono transition-colors ${
-                activeTileLayer === 'stadia' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1 px-1.5 text-[10px] rounded font-mono text-center transition-colors ${
+                activeTileLayer === 'stadia' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40' : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
               }`}
-              title="Stadia Alidade Smooth Dark (Free, No Key)"
+              title="Stadia Alidade Smooth Dark (Tactical Night View)"
             >
               Dark
             </button>
             <button
-              onClick={() => setActiveTileLayer('esri')}
-              className={`flex-1 py-0.5 text-[10px] rounded font-mono transition-colors ${
-                activeTileLayer === 'esri' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              onClick={() => setActiveTileLayer('satellite')}
+              className={`py-1 px-1.5 text-[10px] rounded font-mono text-center transition-colors ${
+                activeTileLayer === 'satellite' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
               }`}
-              title="Esri World Dark Gray Base"
+              title="Esri World Imagery High-Resolution Satellite"
             >
-              Esri
+              🛰️ Satellite
+            </button>
+            <button
+              onClick={() => setActiveTileLayer('sentinel')}
+              className={`py-1 px-1.5 text-[10px] rounded font-mono text-center transition-colors ${
+                activeTileLayer === 'sentinel' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40' : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
+              }`}
+              title="Copernicus Sentinel-2 Cloudless Optical Mosaic"
+            >
+              🇪🇺 Sentinel-2
             </button>
             <button
               onClick={() => setActiveTileLayer('osm')}
-              className={`flex-1 py-0.5 text-[10px] rounded font-mono transition-colors ${
-                activeTileLayer === 'osm' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1 px-1.5 text-[10px] rounded font-mono text-center transition-colors ${
+                activeTileLayer === 'osm' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40' : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
               }`}
-              title="OpenStreetMap Standard"
+              title="OpenStreetMap Standard Infrastructure"
             >
               Street
             </button>
