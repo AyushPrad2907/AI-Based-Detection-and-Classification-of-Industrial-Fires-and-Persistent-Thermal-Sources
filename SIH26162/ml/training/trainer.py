@@ -82,11 +82,46 @@ class Trainer:
 
         logger.info("Step 2: Spatio-temporal persistence enrichment...")
         df_enriched = self.thermal_detector.enrich_dataframe_with_persistence(df)
+        df_enriched = self._enrich_with_facility_proximity(df_enriched)
 
         logger.info("Step 3: Weak supervision label generation...")
         df_labeled = self.labeler.generate_labels(df_enriched)
 
         return df_labeled
+
+    def _enrich_with_facility_proximity(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute spatial distance (km) to nearest curated Indian industrial asset if not present."""
+        df = df.copy()
+        needs_proximity = "dist_to_industrial_km" not in df.columns or df["dist_to_industrial_km"].isna().any()
+        if not needs_proximity:
+            return df
+
+        facilities_path = Path(__file__).resolve().parents[2] / "data" / "industrial_facilities_india.json"
+        if not facilities_path.exists():
+            return df
+
+        try:
+            with open(facilities_path, "r", encoding="utf-8") as f:
+                facs = json.load(f)
+            if not facs:
+                return df
+
+            from ml.utils.geo_utils import haversine_distance_matrix
+            fac_coords = np.array([[float(fac["latitude"]), float(fac["longitude"])] for fac in facs])
+            obs_coords = df[["latitude", "longitude"]].astype(float).values
+
+            dists = haversine_distance_matrix(obs_coords, fac_coords, unit="km").min(axis=1)
+
+            if "dist_to_industrial_km" in df.columns:
+                df["dist_to_industrial_km"] = df["dist_to_industrial_km"].fillna(pd.Series(dists, index=df.index))
+            else:
+                df["dist_to_industrial_km"] = dists
+
+            df["is_near_industrial"] = (df["dist_to_industrial_km"] <= 2.0).astype(float)
+            logger.info(f"Enriched {len(df)} records with facility proximity. Facilities within 2km: {(df['is_near_industrial'] == 1.0).sum()}")
+        except Exception as e:
+            logger.warning(f"Could not calculate facility proximity: {e}")
+        return df
 
     def split_data(
         self,

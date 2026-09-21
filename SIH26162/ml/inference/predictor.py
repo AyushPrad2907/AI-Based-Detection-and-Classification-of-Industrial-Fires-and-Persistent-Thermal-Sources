@@ -94,8 +94,20 @@ class Predictor:
             dist_ind_m = osm_context.get("min_distance_m")
             facility_name = osm_context.get("nearest_facility_name")
             facility_type = osm_context.get("nearest_facility_type")
-        elif "dist_to_industrial_km" in record:
+        elif "dist_to_industrial_km" in record and record["dist_to_industrial_km"] is not None:
             dist_ind_m = float(record["dist_to_industrial_km"]) * 1000.0
+
+        # Physics Consistency Guardrail: Industrial fire or flaring requires industrial infrastructure (<2.5km)
+        if dist_ind_m is not None and dist_ind_m > 2500.0:
+            if clf_result["predicted_class"] in ("industrial_fire", "persistent_industrial"):
+                bright_prim = float(record.get("brightness_primary", 300.0) or 300.0)
+                if frp >= 35.0 or bright_prim >= 340.0:
+                    clf_result["predicted_class"] = "wildfire"
+                elif frp >= 2.0:
+                    clf_result["predicted_class"] = "agricultural_burn"
+                else:
+                    clf_result["predicted_class"] = "uncertain_anomaly"
+                clf_result["confidence"] = max(clf_result["confidence"], 0.88)
 
         persist_count = int(record.get("persistence_count", 1) or 1)
         persist_days = float(record.get("persistence_days", 0.0) or 0.0)
