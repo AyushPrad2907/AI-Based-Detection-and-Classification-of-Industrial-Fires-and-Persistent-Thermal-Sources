@@ -24,6 +24,16 @@
 
 ---
 
+<br/>
+
+<a href="https://res.cloudinary.com/dtz0urit6/image/upload/q_auto:best,f_jpg/cloudinary-tools-uploads/rk766kyezbgqoxnme7o3" target="_blank">
+  <img src="https://res.cloudinary.com/dtz0urit6/image/upload/q_auto:best,f_jpg/cloudinary-tools-uploads/rk766kyezbgqoxnme7o3" alt="SIH26162 Tactical Command Center Dashboard" width="100%" style="border-radius: 10px; border: 1px solid #334155; box-shadow: 0 12px 32px rgba(0,0,0,0.6);" />
+</a>
+
+<p align="center">
+  <sub>🛰️ <b>Figure 1:</b> SIH26162 Tactical Command Center — Live NASA FIRMS satellite telemetry, embedded Copernicus Sentinel-2 optical imagery, 127 strategic Indian facilities gazetteer, and explainable 5-factor AI risk assessment.</sub>
+</p>
+
 </div>
 
 ## 📌 Executive Summary
