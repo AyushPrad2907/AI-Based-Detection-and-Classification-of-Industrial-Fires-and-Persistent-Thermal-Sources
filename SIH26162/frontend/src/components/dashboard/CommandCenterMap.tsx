@@ -72,21 +72,24 @@ function CommandCenterMapInner({
   const tileLayerRef = useRef<L.TileLayer | null>(null)
 
   // Basemap tile configs — free high-resolution and optical satellite layers
-  const TILE_LAYERS: Record<BasemapType, { url: string; attribution: string; maxZoom: number; subdomains?: string }> = {
+  const TILE_LAYERS: Record<BasemapType, { url: string; attribution: string; maxZoom: number; subdomains: string }> = {
     stadia: {
       url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
       attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 20,
+      subdomains: '',
     },
     satellite: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: '&copy; Esri &mdash; High-Resolution Earth Imagery',
       maxZoom: 19,
+      subdomains: '',
     },
     sentinel: {
       url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg',
       attribution: '&copy; <a href="https://maps.eox.at/">EOX IT Services GmbH</a> &copy; <a href="https://sentinel.esa.int/">Copernicus Sentinel-2 Cloudless</a>',
       maxZoom: 16,
+      subdomains: '',
     },
     osm: {
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -118,7 +121,7 @@ function CommandCenterMapInner({
     const initialTile = L.tileLayer(cfg.url, {
       attribution: cfg.attribution,
       maxZoom: cfg.maxZoom,
-      subdomains: cfg.subdomains,
+      subdomains: cfg.subdomains || '',
     }).addTo(map)
 
     tileLayerRef.current = initialTile
@@ -159,7 +162,7 @@ function CommandCenterMapInner({
     tileLayerRef.current = L.tileLayer(cfg.url, {
       attribution: cfg.attribution,
       maxZoom: cfg.maxZoom,
-      subdomains: cfg.subdomains,
+      subdomains: cfg.subdomains || '',
     }).addTo(mapRef.current)
   }, [activeTileLayer])
 
