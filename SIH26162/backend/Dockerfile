@@ -12,9 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code and ml module
+# Copy application code, ml module, and spatial gazetteer data
 COPY backend/app ./app
 COPY ml ./ml
+COPY data ./data
 
 ENV PYTHONPATH=/app
 
