@@ -189,3 +189,34 @@ export interface SelectedEntity {
   data: FIRMSObservation | PersistentThermalCluster | IndustrialFacility
   classificationResult?: FireClassificationResult | null
 }
+
+export interface ThermalAlert {
+  alert_id: string
+  type: string
+  source: string
+  latitude: number
+  longitude: number
+  predicted_class: FireClassificationType | string
+  risk_score: number
+  risk_level: RiskLevel | string
+  frp_mw: number
+  brightness_k: number
+  confidence: number
+  daynight: string
+  nearest_facility?: string
+  facility_type?: string
+  facility_distance_km?: number
+  location_name?: string
+  summary: string
+  timestamp: string
+}
+
+export interface PollerStatus {
+  running: boolean
+  interval_seconds: number
+  total_ingested: number
+  total_alerts_sent: number
+  last_poll_time?: string | null
+  active_sse_subscribers: number
+}
+

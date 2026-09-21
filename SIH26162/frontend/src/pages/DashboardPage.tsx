@@ -24,11 +24,14 @@ import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts'
 import { ObservationsTable } from '@/components/dashboard/ObservationsTable'
 import { SystemHealthModal } from '@/components/dashboard/SystemHealthModal'
 import { SimulationSandbox } from '@/components/dashboard/SimulationSandbox'
+import { LiveAlertRadar } from '@/components/dashboard/LiveAlertRadar'
 import { ApiService } from '@/lib/api'
 import { exportToCSV } from '@/lib/exportUtils'
 import { useDashboardStore, DEMO_SCENARIOS } from '@/store/useDashboardStore'
 
 export function DashboardPage() {
+  const [targetedAlertLocation, setTargetedAlertLocation] = useState<{ lat: number; lon: number; label?: string } | null>(null)
+
   const observations = useDashboardStore((s) => s.observations)
   const totalObsCount = useDashboardStore((s) => s.totalObsCount)
   const clusters = useDashboardStore((s) => s.clusters)
@@ -325,6 +328,17 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* Live SSE Alert Radar Bar & Floating Anomaly Stream (Phase II) */}
+      <LiveAlertRadar
+        onFocusCoordinates={(lat, lon, alert) => {
+          setTargetedAlertLocation({
+            lat,
+            lon,
+            label: `${alert.risk_level}: ${alert.predicted_class} (${alert.frp_mw} MW) - ${alert.nearest_facility || alert.location_name}`,
+          })
+        }}
+      />
+
       {/* Near-Real-Time KPI Telemetry Cards */}
       <KPICards
         observations={observations}
@@ -365,6 +379,7 @@ export function DashboardPage() {
               onBoundsChange={handleMapBoundsChange}
               useMapBounds={filters.useMapBounds}
               loading={loading}
+              targetedAlertLocation={targetedAlertLocation}
             />
 
             {/* Inline Analytics Preview */}
@@ -442,6 +457,7 @@ export function DashboardPage() {
               onBoundsChange={handleMapBoundsChange}
               useMapBounds={filters.useMapBounds}
               loading={loading}
+              targetedAlertLocation={targetedAlertLocation}
             />
           </div>
           {selectedEntity && (

@@ -7,7 +7,7 @@ that is included by the main application.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, fires, thermal, geospatial
+from app.api.v1.endpoints import health, fires, thermal, geospatial, alerts
 
 api_v1_router = APIRouter()
 
@@ -16,3 +16,5 @@ api_v1_router.include_router(health.router, prefix="/health", tags=["Health"])
 api_v1_router.include_router(fires.router, prefix="/fires", tags=["Fire Detection"])
 api_v1_router.include_router(thermal.router, prefix="/thermal", tags=["Thermal Sources"])
 api_v1_router.include_router(geospatial.router, prefix="/geospatial", tags=["Geospatial"])
+api_v1_router.include_router(alerts.router, prefix="/alerts", tags=["Alerts & Live Stream"])
+

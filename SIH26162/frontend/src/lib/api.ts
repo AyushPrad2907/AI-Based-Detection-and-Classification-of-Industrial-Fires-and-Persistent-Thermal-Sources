@@ -10,6 +10,8 @@ import type {
   HealthStatus,
   DatabaseHealth,
   DashboardFilterState,
+  ThermalAlert,
+  PollerStatus,
 } from '@/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
@@ -184,4 +186,42 @@ export const ApiService = {
     })
     return res.data
   },
+
+  // Real-Time Alerts & Background Satellite Poller (Phase II)
+  getAlertStreamUrl(): string {
+    return `${API_BASE_URL}/alerts/stream`
+  },
+
+  async getRecentAlerts(limit = 20): Promise<ThermalAlert[]> {
+    const res = await apiClient.get<ThermalAlert[]>('/alerts/recent', { params: { limit } })
+    return res.data
+  },
+
+  async simulateAlert(zoneName?: string, acuteFire = true): Promise<{ status: string; message: string; alert: ThermalAlert }> {
+    const res = await apiClient.post<{ status: string; message: string; alert: ThermalAlert }>('/alerts/simulate', {
+      zone_name: zoneName,
+      acute_fire: acuteFire,
+    })
+    return res.data
+  },
+
+  async getPollerStatus(): Promise<PollerStatus> {
+    const res = await apiClient.get<PollerStatus>('/alerts/poller/status')
+    return res.data
+  },
+
+  async startPoller(intervalSeconds = 20): Promise<{ status: string; message: string; poller: PollerStatus }> {
+    const res = await apiClient.post<{ status: string; message: string; poller: PollerStatus }>(
+      '/alerts/poller/start',
+      null,
+      { params: { interval_seconds: intervalSeconds } }
+    )
+    return res.data
+  },
+
+  async stopPoller(): Promise<{ status: string; message: string; poller: PollerStatus }> {
+    const res = await apiClient.post<{ status: string; message: string; poller: PollerStatus }>('/alerts/poller/stop')
+    return res.data
+  },
 }
+

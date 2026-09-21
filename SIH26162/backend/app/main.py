@@ -49,7 +49,13 @@ def create_app() -> FastAPI:
     # CORS Middleware
     # In production, restrict origins to your frontend domain.
     # -------------------------------------------------------------------------
-    origins = ["http://localhost:5173", "http://localhost:3000"] if settings.environment == "development" else [settings.frontend_url]
+    origins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:3000",
+    ] if settings.environment == "development" else [settings.frontend_url]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

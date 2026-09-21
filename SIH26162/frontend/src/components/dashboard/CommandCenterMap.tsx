@@ -9,6 +9,9 @@ import {
   Eye,
   EyeOff,
   Crosshair,
+  Play,
+  Pause,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type {
@@ -37,6 +40,7 @@ interface CommandCenterMapProps {
   onBoundsChange?: (bbox: [number, number, number, number]) => void
   useMapBounds?: boolean
   loading?: boolean
+  targetedAlertLocation?: { lat: number; lon: number; label?: string } | null
 }
 
 // Helper for color-coding markers based on FRP
@@ -55,6 +59,7 @@ function CommandCenterMapInner({
   onSelectEntity,
   onBoundsChange,
   loading = false,
+  targetedAlertLocation = null,
 }: CommandCenterMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -62,6 +67,32 @@ function CommandCenterMapInner({
   const clustersLayerRef = useRef<L.LayerGroup | null>(null)
   const facilitiesLayerRef = useRef<L.LayerGroup | null>(null)
   const selectedHighlightRef = useRef<L.LayerGroup | null>(null)
+  const radarBeaconLayerRef = useRef<L.LayerGroup | null>(null)
+
+  // Temporal Playback State (Fix 5)
+  const [selectedDateIndex, setSelectedDateIndex] = useState<number | null>(null)
+  const [isPlaying, setIsPlaying] = useState<boolean>(false)
+  const [playbackSpeed] = useState<number>(1200) // ms per date frame
+
+  // Unique chronological observation dates
+  const uniqueDates = React.useMemo(() => {
+    const dates = new Set<string>()
+    observations.forEach((o) => {
+      if (o.acq_datetime) {
+        dates.add(o.acq_datetime.slice(0, 10))
+      }
+    })
+    return Array.from(dates).sort()
+  }, [observations])
+
+  // Active observations filtered by selected timeline date
+  const activeObservations = React.useMemo(() => {
+    if (selectedDateIndex === null || !uniqueDates[selectedDateIndex]) {
+      return observations
+    }
+    const targetDate = uniqueDates[selectedDateIndex]
+    return observations.filter((o) => o.acq_datetime && o.acq_datetime.startsWith(targetDate))
+  }, [observations, selectedDateIndex, uniqueDates])
 
   // Layer Visibility Toggles
   const [showObservations, setShowObservations] = useState(true)
@@ -131,6 +162,7 @@ function CommandCenterMapInner({
     clustersLayerRef.current = L.layerGroup().addTo(map)
     facilitiesLayerRef.current = L.layerGroup().addTo(map)
     selectedHighlightRef.current = L.layerGroup().addTo(map)
+    radarBeaconLayerRef.current = L.layerGroup().addTo(map)
 
     // Viewport Bounds Change Listener
     map.on('moveend', () => {
@@ -149,6 +181,7 @@ function CommandCenterMapInner({
     return () => {
       map.remove()
       mapRef.current = null
+      radarBeaconLayerRef.current = null
     }
   }, [onBoundsChange])
 
@@ -166,6 +199,53 @@ function CommandCenterMapInner({
     }).addTo(mapRef.current)
   }, [activeTileLayer])
 
+  // Timeline Playback Timer Effect (Fix 5)
+  useEffect(() => {
+    if (!isPlaying || uniqueDates.length === 0) return
+    const timer = setInterval(() => {
+      setSelectedDateIndex((prev) => {
+        if (prev === null || prev >= uniqueDates.length - 1) {
+          return 0
+        }
+        return prev + 1
+      })
+    }, playbackSpeed)
+    return () => clearInterval(timer)
+  }, [isPlaying, uniqueDates, playbackSpeed])
+
+  // Targeted Alert Location Radar Beacon (Fix 3 & 4)
+  useEffect(() => {
+    if (!mapRef.current || !radarBeaconLayerRef.current) return
+    radarBeaconLayerRef.current.clearLayers()
+
+    if (!targetedAlertLocation) return
+
+    const { lat, lon, label } = targetedAlertLocation
+    mapRef.current.flyTo([lat, lon], 12, { animate: true, duration: 1.2 })
+
+    // Expanding tactical radar pulse ring
+    const ring = L.circle([lat, lon], {
+      radius: 3500,
+      color: '#ef4444',
+      fillColor: '#ef4444',
+      fillOpacity: 0.22,
+      weight: 2,
+      dashArray: '6, 8',
+    })
+
+    const center = L.circleMarker([lat, lon], {
+      radius: 9,
+      color: '#ffffff',
+      fillColor: '#ef4444',
+      fillOpacity: 0.95,
+      weight: 2,
+    }).bindPopup(`<div class="p-2 text-xs font-bold text-red-400">🚨 ${escapeHtml(label || 'Targeted Thermal Anomaly')}</div>`)
+
+    radarBeaconLayerRef.current.addLayer(ring)
+    radarBeaconLayerRef.current.addLayer(center)
+    center.openPopup()
+  }, [targetedAlertLocation])
+
   // Render FIRMS Observation Markers
   useEffect(() => {
     if (!markersLayerRef.current) return
@@ -173,7 +253,7 @@ function CommandCenterMapInner({
 
     if (!showObservations) return
 
-    observations.forEach((obs) => {
+    activeObservations.forEach((obs) => {
       const color = getObservationColor(obs)
       const isHighPower = obs.frp >= 50
       const isNight = obs.daynight === 'N'
@@ -229,7 +309,7 @@ function CommandCenterMapInner({
 
       markersLayerRef.current?.addLayer(marker)
     })
-  }, [observations, showObservations, onSelectEntity])
+  }, [activeObservations, showObservations, onSelectEntity])
 
   // Render Persistent Thermal Clusters
   useEffect(() => {
@@ -516,6 +596,67 @@ function CommandCenterMapInner({
           <span className="text-cyan-300 font-medium">Persistent Source</span>
         </div>
       </div>
+
+      {/* Bottom Temporal Timeline Scrubber (Fix 5) */}
+      {uniqueDates.length > 1 && (
+        <div className="absolute bottom-3 right-3 z-[1000] pointer-events-auto bg-slate-900/95 border border-slate-800 rounded-xl p-2.5 shadow-2xl backdrop-blur-md w-80 sm:w-96">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsPlaying(!isPlaying)}
+                className={`h-6 px-2 text-[11px] font-semibold gap-1 border-slate-700 ${
+                  isPlaying ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-800 text-slate-200'
+                }`}
+              >
+                {isPlaying ? <Pause className="size-3 text-amber-400" /> : <Play className="size-3 text-emerald-400" />}
+                <span>{isPlaying ? 'Pause' : 'Play'}</span>
+              </Button>
+
+              <span className="text-xs font-mono font-bold text-slate-200">
+                {selectedDateIndex !== null ? uniqueDates[selectedDateIndex] : 'All Observation Dates'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {selectedDateIndex !== null && (
+                <button
+                  onClick={() => {
+                    setIsPlaying(false)
+                    setSelectedDateIndex(null)
+                  }}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-0.5"
+                  title="Show all observations simultaneously"
+                >
+                  <RotateCcw className="size-2.5" />
+                  <span>All</span>
+                </button>
+              )}
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 text-amber-400 border border-slate-800">
+                {activeObservations.length} fires
+              </span>
+            </div>
+          </div>
+
+          {/* Scrubber slider */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-mono text-slate-500">{uniqueDates[0]}</span>
+            <input
+              type="range"
+              min="0"
+              max={uniqueDates.length - 1}
+              value={selectedDateIndex ?? uniqueDates.length - 1}
+              onChange={(e) => {
+                setIsPlaying(false)
+                setSelectedDateIndex(Number(e.target.value))
+              }}
+              className="w-full h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+            />
+            <span className="text-[9px] font-mono text-slate-500">{uniqueDates[uniqueDates.length - 1]}</span>
+          </div>
+        </div>
+      )}
 
       {/* Loading Overlay */}
       {loading && (
