@@ -75,31 +75,52 @@ function CommandCenterMapInner({
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [playbackSpeed] = useState<number>(1200) // ms per date frame
 
-  // Unique chronological observation dates
-  const uniqueDates = React.useMemo(() => {
+  // Unique chronological observation frames (multi-day or hourly satellite passes)
+  const uniqueFrames = React.useMemo(() => {
     const dates = new Set<string>()
     observations.forEach((o) => {
       if (o.acq_datetime) {
         dates.add(o.acq_datetime.slice(0, 10))
       }
     })
-    return Array.from(dates).sort()
+    const dateArr = Array.from(dates).sort()
+    if (dateArr.length > 1) {
+      return dateArr
+    }
+
+    // If single calendar day, cluster by satellite pass hours
+    const hourFrames = new Set<string>()
+    observations.forEach((o) => {
+      if (o.acq_datetime) {
+        hourFrames.add(o.acq_datetime.slice(5, 13) + ':00')
+      }
+    })
+    const hourArr = Array.from(hourFrames).sort()
+    return hourArr.length > 0 ? hourArr : ['All Telemetry']
   }, [observations])
 
-  // Active observations filtered by selected timeline date
+  // Active observations filtered by selected timeline frame
   const activeObservations = React.useMemo(() => {
-    if (selectedDateIndex === null || !uniqueDates[selectedDateIndex]) {
+    if (selectedDateIndex === null || !uniqueFrames[selectedDateIndex]) {
       return observations
     }
-    const targetDate = uniqueDates[selectedDateIndex]
-    return observations.filter((o) => o.acq_datetime && o.acq_datetime.startsWith(targetDate))
-  }, [observations, selectedDateIndex, uniqueDates])
+    const targetFrame = uniqueFrames[selectedDateIndex]
+    if (targetFrame === 'All Telemetry') return observations
+    return observations.filter((o) => {
+      if (!o.acq_datetime) return true
+      return (
+        o.acq_datetime.startsWith(targetFrame) ||
+        o.acq_datetime.includes(targetFrame.replace(':00', ''))
+      )
+    })
+  }, [observations, selectedDateIndex, uniqueFrames])
 
   // Layer Visibility Toggles
   const [showObservations, setShowObservations] = useState(true)
   const [showClusters, setShowClusters] = useState(true)
   const [showFacilities, setShowFacilities] = useState(true)
-  const [showHeatmap, setShowHeatmap] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(true) // DEFAULT TO TRUE
+
 
   type BasemapType = 'stadia' | 'satellite' | 'sentinel' | 'osm'
   const [activeTileLayer, setActiveTileLayer] = useState<BasemapType>('stadia')
@@ -207,17 +228,18 @@ function CommandCenterMapInner({
 
   // Timeline Playback Timer Effect (Fix 5)
   useEffect(() => {
-    if (!isPlaying || uniqueDates.length === 0) return
+    if (!isPlaying || uniqueFrames.length === 0) return
     const timer = setInterval(() => {
       setSelectedDateIndex((prev) => {
-        if (prev === null || prev >= uniqueDates.length - 1) {
+        if (prev === null || prev >= uniqueFrames.length - 1) {
           return 0
         }
         return prev + 1
       })
     }, playbackSpeed)
     return () => clearInterval(timer)
-  }, [isPlaying, uniqueDates, playbackSpeed])
+  }, [isPlaying, uniqueFrames, playbackSpeed])
+
 
   // Targeted Alert Location Radar Beacon (Fix 3 & 4)
   useEffect(() => {
@@ -663,7 +685,7 @@ function CommandCenterMapInner({
       </div>
 
       {/* Bottom Temporal Timeline Scrubber (Fix 5) */}
-      {uniqueDates.length > 1 && (
+      {uniqueFrames.length > 0 && (
         <div className="absolute bottom-3 right-3 z-[1000] pointer-events-auto bg-slate-900/95 border border-slate-800 rounded-xl p-2.5 shadow-2xl backdrop-blur-md w-80 sm:w-96">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2">
@@ -679,8 +701,8 @@ function CommandCenterMapInner({
                 <span>{isPlaying ? 'Pause' : 'Play'}</span>
               </Button>
 
-              <span className="text-xs font-mono font-bold text-slate-200">
-                {selectedDateIndex !== null ? uniqueDates[selectedDateIndex] : 'All Observation Dates'}
+              <span className="text-xs font-mono font-bold text-slate-200 truncate max-w-[150px]">
+                {selectedDateIndex !== null ? uniqueFrames[selectedDateIndex] : 'All Telemetry'}
               </span>
             </div>
 
@@ -705,23 +727,26 @@ function CommandCenterMapInner({
           </div>
 
           {/* Scrubber slider */}
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-mono text-slate-500">{uniqueDates[0]}</span>
-            <input
-              type="range"
-              min="0"
-              max={uniqueDates.length - 1}
-              value={selectedDateIndex ?? uniqueDates.length - 1}
-              onChange={(e) => {
-                setIsPlaying(false)
-                setSelectedDateIndex(Number(e.target.value))
-              }}
-              className="w-full h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-[9px] font-mono text-slate-500">{uniqueDates[uniqueDates.length - 1]}</span>
-          </div>
+          {uniqueFrames.length > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono text-slate-500">{uniqueFrames[0]}</span>
+              <input
+                type="range"
+                min="0"
+                max={uniqueFrames.length - 1}
+                value={selectedDateIndex ?? uniqueFrames.length - 1}
+                onChange={(e) => {
+                  setIsPlaying(false)
+                  setSelectedDateIndex(Number(e.target.value))
+                }}
+                className="w-full h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+              />
+              <span className="text-[9px] font-mono text-slate-500">{uniqueFrames[uniqueFrames.length - 1]}</span>
+            </div>
+          )}
         </div>
       )}
+
 
       {/* Loading Overlay */}
       {loading && (

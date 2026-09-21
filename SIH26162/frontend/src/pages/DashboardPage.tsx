@@ -37,8 +37,9 @@ export function DashboardPage() {
   const clusters = useDashboardStore((s) => s.clusters)
   const totalClustersCount = useDashboardStore((s) => s.totalClustersCount)
   const classifications = useDashboardStore((s) => s.classifications)
-
+  const facilities = useDashboardStore((s) => s.facilities)
   const selectedEntity = useDashboardStore((s) => s.selectedEntity)
+
   const viewMode = useDashboardStore((s) => s.viewMode)
   const isHealthModalOpen = useDashboardStore((s) => s.isHealthModalOpen)
   const dbHealth = useDashboardStore((s) => s.dbHealth)
@@ -374,6 +375,7 @@ export function DashboardPage() {
             <CommandCenterMap
               observations={observations}
               clusters={clusters}
+              facilities={facilities}
               selectedEntity={selectedEntity}
               onSelectEntity={(entity) => setSelectedEntity(entity)}
               onBoundsChange={handleMapBoundsChange}
@@ -381,6 +383,7 @@ export function DashboardPage() {
               loading={loading}
               targetedAlertLocation={targetedAlertLocation}
             />
+
 
             {/* Inline Analytics Preview */}
             <AnalyticsCharts
@@ -452,6 +455,7 @@ export function DashboardPage() {
             <CommandCenterMap
               observations={observations}
               clusters={clusters}
+              facilities={facilities}
               selectedEntity={selectedEntity}
               onSelectEntity={(entity) => setSelectedEntity(entity)}
               onBoundsChange={handleMapBoundsChange}
@@ -459,6 +463,7 @@ export function DashboardPage() {
               loading={loading}
               targetedAlertLocation={targetedAlertLocation}
             />
+
           </div>
           {selectedEntity && (
             <div className="lg:col-span-4">

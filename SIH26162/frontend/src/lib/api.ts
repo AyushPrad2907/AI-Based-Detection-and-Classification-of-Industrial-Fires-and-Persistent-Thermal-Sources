@@ -6,7 +6,9 @@ import type {
   PaginatedClassifications,
   FireClassificationResult,
   IndustrialContextResponse,
+  IndustrialFacility,
   ModelStatus,
+
   HealthStatus,
   DatabaseHealth,
   DashboardFilterState,
@@ -187,8 +189,17 @@ export const ApiService = {
     return res.data
   },
 
+  // 127 Strategic Indian Industrial Facilities PostGIS Gazetteer (Phase III)
+  async getFacilities(limit = 200, facilityType?: string): Promise<IndustrialFacility[]> {
+    const res = await apiClient.get<IndustrialFacility[]>('/geospatial/facilities', {
+      params: { limit, facility_type: facilityType },
+    })
+    return res.data
+  },
+
   // Real-Time Alerts & Background Satellite Poller (Phase II)
   getAlertStreamUrl(): string {
+
     return `${API_BASE_URL}/alerts/stream`
   },
 

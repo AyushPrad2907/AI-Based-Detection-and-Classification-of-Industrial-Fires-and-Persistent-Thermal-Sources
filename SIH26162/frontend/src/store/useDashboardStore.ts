@@ -8,7 +8,9 @@ import type {
   SelectedEntity,
   DashboardFilterState,
   DatabaseHealth,
+  IndustrialFacility,
 } from '@/types'
+
 
 // ---------------------------------------------------------------------------
 // Demo Scenario Configuration (Objective 5 — real DB-backed observations)
@@ -110,6 +112,8 @@ export interface DashboardState {
   totalObsCount: number
   clusters: PersistentThermalCluster[]
   totalClustersCount: number
+  facilities: IndustrialFacility[]
+  totalFacilitiesCount: number
   classifications: ClassificationRecord[]
 
   // Selection & UI
@@ -170,6 +174,8 @@ export const useDashboardStore = create<DashboardStore>()(
     totalObsCount: 0,
     clusters: [],
     totalClustersCount: 0,
+    facilities: [],
+    totalFacilitiesCount: 0,
     classifications: [],
 
     selectedEntity: null,
@@ -194,29 +200,37 @@ export const useDashboardStore = create<DashboardStore>()(
 
     // Actions
     fetchDashboardData: async () => {
-      const { filters, currentPage, pageSize } = get()
+      const { filters, currentPage, pageSize, selectedEntity } = get()
       set({ loading: true, error: null })
       try {
-        const [obsRes, clustersRes, clfRes, dbRes] = await Promise.all([
+        const [obsRes, clustersRes, facsRes, clfRes, dbRes] = await Promise.all([
           ApiService.getObservations(filters, currentPage, pageSize),
           ApiService.getPersistentSources(filters, 200, 0),
+          ApiService.getFacilities(200).catch(() => []),
           ApiService.getClassifications(filters, 1, 100),
           ApiService.getDatabaseHealth().catch(() => null),
         ])
 
+        const newObs = obsRes.observations || []
+        const defaultSelected = selectedEntity ?? (newObs.length > 0 ? { type: 'observation', data: newObs[0] } : null)
+
         set({
-          observations: obsRes.observations || [],
+          observations: newObs,
           totalObsCount: obsRes.total || 0,
           totalPages: obsRes.total_pages || 1,
           clusters: clustersRes.clusters || [],
           totalClustersCount: clustersRes.total_clusters || 0,
+          facilities: facsRes || [],
+          totalFacilitiesCount: facsRes?.length || 0,
           classifications: clfRes.classifications || [],
+          selectedEntity: defaultSelected,
           dbHealth: dbRes,
           isOffline: false,
           lastRefreshed: new Date(),
           loading: false,
         })
       } catch (err: unknown) {
+
         console.error('Failed to load dashboard telemetry:', err)
         set({
           isOffline: true,
