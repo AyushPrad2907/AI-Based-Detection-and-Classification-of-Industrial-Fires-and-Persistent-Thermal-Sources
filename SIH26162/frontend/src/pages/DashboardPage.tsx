@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   Flame,
   Activity,
@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { KPICards } from '@/components/dashboard/KPICards'
 import { FilterBar } from '@/components/dashboard/FilterBar'
 import { CommandCenterMap } from '@/components/dashboard/CommandCenterMap'
+import { TimelineScrubberBar } from '@/components/dashboard/TimelineScrubberBar'
 import { DetailPanel } from '@/components/dashboard/DetailPanel'
 import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts'
 import { ObservationsTable } from '@/components/dashboard/ObservationsTable'
@@ -71,6 +72,65 @@ export function DashboardPage() {
 
   const [countdown, setCountdown] = useState<number>(autoPulseInterval)
 
+  // Temporal Playback State (Fix B: Lifted from map)
+  const [selectedDateIndex, setSelectedDateIndex] = useState<number | null>(null)
+  const [isPlaying, setIsPlaying] = useState<boolean>(false)
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1200)
+
+  // Unique chronological observation frames (multi-day or hourly satellite passes)
+  const uniqueFrames = useMemo(() => {
+    const dates = new Set<string>()
+    observations.forEach((o) => {
+      if (o.acq_datetime) {
+        dates.add(o.acq_datetime.slice(0, 10))
+      }
+    })
+    const dateArr = Array.from(dates).sort()
+    if (dateArr.length > 1) {
+      return dateArr
+    }
+
+    // If single calendar day, cluster by satellite pass hours
+    const hourFrames = new Set<string>()
+    observations.forEach((o) => {
+      if (o.acq_datetime) {
+        hourFrames.add(o.acq_datetime.slice(5, 13) + ':00')
+      }
+    })
+    const hourArr = Array.from(hourFrames).sort()
+    return hourArr.length > 0 ? hourArr : ['All Telemetry']
+  }, [observations])
+
+  // Active observations filtered by selected timeline frame
+  const activeObservations = useMemo(() => {
+    if (selectedDateIndex === null || !uniqueFrames[selectedDateIndex]) {
+      return observations
+    }
+    const targetFrame = uniqueFrames[selectedDateIndex]
+    if (targetFrame === 'All Telemetry') return observations
+    return observations.filter((o) => {
+      if (!o.acq_datetime) return true
+      return (
+        o.acq_datetime.startsWith(targetFrame) ||
+        o.acq_datetime.includes(targetFrame.replace(':00', ''))
+      )
+    })
+  }, [observations, selectedDateIndex, uniqueFrames])
+
+  // Timeline Playback Timer Effect
+  useEffect(() => {
+    if (!isPlaying || uniqueFrames.length === 0) return
+    const timer = setInterval(() => {
+      setSelectedDateIndex((prev) => {
+        if (prev === null || prev >= uniqueFrames.length - 1) {
+          return 0
+        }
+        return prev + 1
+      })
+    }, playbackSpeed)
+    return () => clearInterval(timer)
+  }, [isPlaying, uniqueFrames, playbackSpeed])
+
   // Initial Data Fetch
   useEffect(() => {
     fetchDashboardData()
@@ -95,12 +155,13 @@ export function DashboardPage() {
   }, [autoPulseInterval, fetchDashboardData])
 
   return (
-    <div className="flex flex-col gap-6 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-screen">
+    // FIX C: Full-width layout container with generous maximum width, eliminating dead side gutters
+    <div className="flex flex-col gap-5 py-5 px-3 sm:px-5 lg:px-7 max-w-[1850px] w-full mx-auto min-h-screen">
 
       {/* ═══════════════════════════════════════════════════
-          PYROS — 2-Row Command Header
+          PYROS — 2-Row Command Header (Fix D: Crisp Hierarchy)
       ═══════════════════════════════════════════════════ */}
-      <div className="flex flex-col gap-3 border-b border-slate-800 pb-5">
+      <div className="flex flex-col gap-3 border-b border-slate-800 pb-4">
 
         {/* ── Row 1: Brand Title + Primary Controls ── */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -109,28 +170,27 @@ export function DashboardPage() {
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
-                <span className="tracking-widest bg-gradient-to-r from-amber-400 to-red-500 bg-clip-text text-transparent">
+                <span className="tracking-widest bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
                   PYROS
                 </span>
                 {isDemoMode ? (
-                  <span className="text-purple-400 font-mono text-sm font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 animate-pulse">
-                    ⚗ DEMO
+                  <span className="text-purple-400 font-mono text-xs font-bold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 animate-pulse">
+                    ⚗ DEMO MODE
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-emerald-400 font-mono text-sm font-semibold px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
-                    {/* Pulsing red dot — classic "live" signal */}
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-mono text-xs font-bold px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
                     <span className="relative flex size-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                       <span className="relative inline-flex size-2 rounded-full bg-red-500" />
                     </span>
-                    LIVE
+                    LIVE TELEMETRY
                   </span>
                 )}
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
-              <span>Industrial Fire &amp; Thermal AI Detection System</span>
-              <span className="text-slate-600">•</span>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-slate-300">Industrial Fire &amp; Thermal AI Detection System</span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
               <span className="text-slate-500 font-mono text-xs">
                 Updated {lastRefreshed.toLocaleTimeString()}
               </span>
@@ -141,7 +201,7 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2">
 
             {/* Live Auto-Pulse Ticker */}
-            <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono">
+            <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono shadow-sm">
               <button
                 onClick={() => {
                   const next = autoPulseInterval === 0 ? 30 : autoPulseInterval === 30 ? 15 : autoPulseInterval === 15 ? 60 : 0
@@ -165,19 +225,19 @@ export function DashboardPage() {
               variant="outline"
               onClick={fetchDashboardData}
               disabled={loading}
-              className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+              className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800 shadow-sm font-semibold"
             >
               <RefreshCw className={`size-3.5 mr-1.5 text-amber-500 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </Button>
 
             {/* View Mode Switcher */}
-            <div className="flex items-center rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
+            <div className="flex items-center rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs shadow-sm">
               <button
                 onClick={() => setViewMode('split')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-md font-medium transition-all ${
                   viewMode === 'split'
-                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Split View: Map and Telemetry Side-by-Side"
@@ -187,9 +247,9 @@ export function DashboardPage() {
               </button>
               <button
                 onClick={() => setViewMode('map')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-md font-medium transition-all ${
                   viewMode === 'map'
-                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Full Map View"
@@ -199,9 +259,9 @@ export function DashboardPage() {
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-md font-medium transition-all ${
                   viewMode === 'table'
-                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Data Table View"
@@ -211,9 +271,9 @@ export function DashboardPage() {
               </button>
               <button
                 onClick={() => setViewMode('analytics')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-md font-medium transition-all ${
                   viewMode === 'analytics'
-                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Analytics &amp; Charts"
@@ -223,9 +283,9 @@ export function DashboardPage() {
               </button>
               <button
                 onClick={() => setViewMode('simulator')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-md font-medium transition-all ${
                   viewMode === 'simulator'
-                    ? 'bg-purple-600 text-white font-semibold shadow-sm'
+                    ? 'bg-purple-600 text-white font-bold shadow-sm'
                     : 'text-purple-400 hover:text-purple-300'
                 }`}
                 title="Interactive AI Anomaly Sandbox Simulator"
@@ -240,12 +300,14 @@ export function DashboardPage() {
         {/* ── Row 2: Status Badge + Secondary Actions ── */}
         <div className="flex flex-wrap items-center justify-between gap-2">
 
-          {/* Status: Data Source (non-interactive, just informational) */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300">
+          {/* Status: Data Source */}
+          <div className="flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-mono bg-slate-900/90 border border-slate-800 text-slate-300">
             <Radio className="size-3 text-emerald-400 animate-pulse" />
-            <span className="text-emerald-400 font-bold">NASA FIRMS</span>
-            <span className="text-slate-500">|</span>
-            <span className="text-slate-400">PostGIS + AI Classifier</span>
+            <span className="text-emerald-400 font-bold">NASA FIRMS NRT</span>
+            <span className="text-slate-600">|</span>
+            <span className="text-slate-300 font-medium">PostGIS Spatial Engine</span>
+            <span className="text-slate-600">|</span>
+            <span className="text-cyan-400 font-medium">PyTorch AI</span>
           </div>
 
           {/* Secondary Actions */}
@@ -254,9 +316,9 @@ export function DashboardPage() {
             {/* Live / Demo Mode Toggle */}
             <button
               onClick={() => setDemoMode(!isDemoMode)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono border transition-all ${
                 isDemoMode
-                  ? 'bg-purple-900/30 border-purple-500/40 text-purple-300 hover:bg-purple-900/50'
+                  ? 'bg-purple-900/30 border-purple-500/40 text-purple-300 hover:bg-purple-900/50 font-bold'
                   : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
               title={isDemoMode ? 'Switch to Live Mode' : 'Switch to Demo Mode — controlled SIH presentation'}
@@ -264,12 +326,12 @@ export function DashboardPage() {
               {isDemoMode ? (
                 <>
                   <Satellite className="size-3 text-emerald-400" />
-                  <span className="text-emerald-400 font-bold">→ LIVE</span>
+                  <span className="text-emerald-400 font-bold">→ SWITCH TO LIVE</span>
                 </>
               ) : (
                 <>
                   <FlaskConical className="size-3 text-purple-400" />
-                  <span className="text-purple-400">DEMO MODE</span>
+                  <span className="text-purple-300">DEMO MODE</span>
                 </>
               )}
             </button>
@@ -284,7 +346,7 @@ export function DashboardPage() {
               title="Download Full Intelligence Report in CSV format"
             >
               <Download className="size-3.5 mr-1 text-cyan-400" />
-              <span>Export</span>
+              <span>Export CSV</span>
             </Button>
 
             {/* System Diagnostics Trigger */}
@@ -324,7 +386,7 @@ export function DashboardPage() {
       {/* Demo Mode Banner & Scenario Selector */}
       {isDemoMode && (
         <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <FlaskConical className="size-4 text-purple-400" />
               <span className="text-sm font-bold text-purple-300">SIH DEMO MODE — Controlled Presentation Scenarios</span>
@@ -354,7 +416,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Live SSE Alert Radar Bar & Floating Anomaly Stream */}
+      {/* Live SSE Alert Radar Bar */}
       <LiveAlertRadar
         onFocusCoordinates={(lat, lon, alert) => {
           setTargetedAlertLocation({
@@ -392,21 +454,40 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Main Workspace Layout */}
+      {/* ═══════════════════════════════════════════════════
+          Main Workspace: Split View Mode (Fix C & Fix B)
+      ═══════════════════════════════════════════════════ */}
       {viewMode === 'split' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Interactive Map (7 cols on large screens) */}
-          <div className="lg:col-span-7 space-y-6">
-            <CommandCenterMap
-              observations={observations}
-              clusters={clusters}
-              facilities={facilities}
-              selectedEntity={selectedEntity}
-              onSelectEntity={(entity) => setSelectedEntity(entity)}
-              onBoundsChange={handleMapBoundsChange}
-              useMapBounds={filters.useMapBounds}
-              loading={loading}
-              targetedAlertLocation={targetedAlertLocation}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Interactive Map & Timeline Scrubber (7 cols lg, 8 cols xl for maximum map visibility) */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-3">
+            {/* Map Canvas with generous height */}
+            <div className="w-full h-[540px] sm:h-[600px] lg:h-[640px] xl:h-[680px]">
+              <CommandCenterMap
+                observations={observations}
+                clusters={clusters}
+                facilities={facilities}
+                selectedEntity={selectedEntity}
+                onSelectEntity={(entity) => setSelectedEntity(entity)}
+                onBoundsChange={handleMapBoundsChange}
+                useMapBounds={filters.useMapBounds}
+                loading={loading}
+                targetedAlertLocation={targetedAlertLocation}
+                activeObservations={activeObservations}
+              />
+            </div>
+
+            {/* FIX B: Dedicated Timeline Scrubber Bar outside the map */}
+            <TimelineScrubberBar
+              uniqueFrames={uniqueFrames}
+              selectedDateIndex={selectedDateIndex}
+              setSelectedDateIndex={setSelectedDateIndex}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              activeCount={activeObservations.length}
+              totalCount={observations.length}
+              playbackSpeed={playbackSpeed}
+              onSpeedToggle={() => setPlaybackSpeed((s) => (s <= 600 ? 1200 : 600))}
             />
 
             {/* Inline Analytics Preview */}
@@ -417,8 +498,8 @@ export function DashboardPage() {
             />
           </div>
 
-          {/* Detail Telemetry & AI Inspection Panel (5 cols on large screens) */}
-          <div className="lg:col-span-5 space-y-6">
+          {/* Detail Telemetry & AI Inspection Panel (5 cols lg, 4 cols xl) */}
+          <div className="lg:col-span-5 xl:col-span-4 space-y-4">
             {selectedEntity ? (
               <DetailPanel
                 selectedEntity={selectedEntity}
@@ -430,7 +511,7 @@ export function DashboardPage() {
                 }}
               />
             ) : (
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-8 text-center space-y-3 backdrop-blur shadow-xl">
+              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-7 text-center space-y-3 backdrop-blur shadow-xl">
                 <div className="size-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
                   <Flame className="size-6" />
                 </div>
@@ -447,7 +528,7 @@ export function DashboardPage() {
                       onClick={() =>
                         setSelectedEntity({ type: 'observation', data: observations[0] })
                       }
-                      className="text-xs bg-slate-950 border-slate-800 text-amber-400 hover:bg-slate-800"
+                      className="text-xs bg-slate-950 border-slate-800 text-amber-400 hover:bg-slate-800 shadow-sm font-semibold"
                     >
                       Inspect First Available Observation
                     </Button>
@@ -473,19 +554,38 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════════════════
+          Full Map View Mode
+      ═══════════════════════════════════════════════════ */}
       {viewMode === 'map' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className={selectedEntity ? 'lg:col-span-8' : 'lg:col-span-12'}>
-            <CommandCenterMap
-              observations={observations}
-              clusters={clusters}
-              facilities={facilities}
-              selectedEntity={selectedEntity}
-              onSelectEntity={(entity) => setSelectedEntity(entity)}
-              onBoundsChange={handleMapBoundsChange}
-              useMapBounds={filters.useMapBounds}
-              loading={loading}
-              targetedAlertLocation={targetedAlertLocation}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <div className={`${selectedEntity ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-3`}>
+            <div className="w-full h-[620px] sm:h-[700px] lg:h-[780px]">
+              <CommandCenterMap
+                observations={observations}
+                clusters={clusters}
+                facilities={facilities}
+                selectedEntity={selectedEntity}
+                onSelectEntity={(entity) => setSelectedEntity(entity)}
+                onBoundsChange={handleMapBoundsChange}
+                useMapBounds={filters.useMapBounds}
+                loading={loading}
+                targetedAlertLocation={targetedAlertLocation}
+                activeObservations={activeObservations}
+              />
+            </div>
+
+            {/* Timeline Scrubber Bar */}
+            <TimelineScrubberBar
+              uniqueFrames={uniqueFrames}
+              selectedDateIndex={selectedDateIndex}
+              setSelectedDateIndex={setSelectedDateIndex}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              activeCount={activeObservations.length}
+              totalCount={observations.length}
+              playbackSpeed={playbackSpeed}
+              onSpeedToggle={() => setPlaybackSpeed((s) => (s <= 600 ? 1200 : 600))}
             />
           </div>
           {selectedEntity && (
@@ -504,6 +604,9 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════════════════
+          Table View Mode
+      ═══════════════════════════════════════════════════ */}
       {viewMode === 'table' && (
         <div className="space-y-6">
           <ObservationsTable
@@ -524,6 +627,9 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════════════════
+          Analytics View Mode
+      ═══════════════════════════════════════════════════ */}
       {viewMode === 'analytics' && (
         <div className="space-y-6">
           <AnalyticsCharts
