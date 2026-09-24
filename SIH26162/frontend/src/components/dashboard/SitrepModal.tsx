@@ -1,4 +1,5 @@
-import React, { useRef } from 'react'
+import React, { useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X,
   Printer,
@@ -40,6 +41,20 @@ export function SitrepModal({
   const [copied, setCopied] = React.useState(false)
   const reportRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      window.addEventListener('keydown', handleKeyDown)
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   const now = new Date()
@@ -53,7 +68,7 @@ export function SitrepModal({
   const lat = observation?.latitude ?? cluster?.centroid_latitude ?? 0
   const lon = observation?.longitude ?? cluster?.centroid_longitude ?? 0
   const frp = observation?.frp ?? cluster?.mean_frp_mw ?? 0
-  const satellite = observation?.satellite ?? 'VIIRS / MODIS'
+  const satellite = observation?.satellite ?? 'VIIRS / MODIS (PostGIS Cluster)'
   const confidence = observation?.confidence_score ?? 95
   const daynight = observation?.daynight === 'N' ? 'NOCTURNAL (NIGHT)' : 'DIURNAL (DAY)'
   const incidentId = observation?.id
@@ -62,10 +77,12 @@ export function SitrepModal({
     ? `NTRO-CLS-${cluster.cluster_id}`
     : `NTRO-INC-${Math.floor(lat * 100)}-${Math.floor(lon * 100)}`
 
-  const riskLevel = classification?.risk_level ?? 'HIGH'
-  const riskScore = classification?.risk_score ?? 82.5
+  const riskLevel = classification?.risk_level ?? (frp > 50 ? 'CRITICAL' : frp > 25 ? 'HIGH' : 'MODERATE')
+  const riskScore = classification?.risk_score ?? Math.min(98.5, 45 + frp * 0.6)
   const predictedClass = classification?.predicted_class
     ? classification.predicted_class.replace(/_/g, ' ').toUpperCase()
+    : cluster?.is_persistent
+    ? 'PERSISTENT INDUSTRIAL HEAT SOURCE'
     : 'INDUSTRIAL FIRE / THERMAL ANOMALY'
 
   const nearestFacility = industrialContext?.nearest_facility_name ?? 'Strategic Industrial Zone'
@@ -120,11 +137,16 @@ STATUS: VERIFIED & LOGGED
     })
   }
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-3xl my-8 bg-slate-900 border-2 border-amber-500/40 rounded-xl shadow-2xl overflow-hidden text-slate-100 font-sans print:border-none print:shadow-none print:m-0 print:w-full print:bg-white print:text-black">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="relative w-full max-w-3xl my-6 bg-slate-900 border-2 border-amber-500/40 rounded-xl shadow-2xl overflow-hidden text-slate-100 font-sans print:border-none print:shadow-none print:m-0 print:w-full print:bg-white print:text-black">
         {/* Top Restricted Banner */}
-        <div className="bg-red-900/60 border-b border-red-500/30 px-4 py-1.5 flex items-center justify-between text-[11px] font-mono tracking-widest uppercase text-red-300 print:bg-gray-200 print:text-black print:border-b-2">
+        <div className="bg-red-900/70 border-b border-red-500/40 px-4 py-1.5 flex items-center justify-between text-[11px] font-mono tracking-widest uppercase text-red-200 print:bg-gray-200 print:text-black print:border-b-2">
           <span className="flex items-center gap-1.5 font-bold">
             <Shield className="size-3.5 text-red-400 print:hidden" />
             RESTRICTED // OFFICIAL OPERATIONAL USE ONLY
@@ -133,17 +155,17 @@ STATUS: VERIFIED & LOGGED
         </div>
 
         {/* Action Header Bar */}
-        <div className="bg-slate-950/90 px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 print:hidden">
+        <div className="bg-slate-950/95 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
-              <Radio className="size-6 animate-pulse" />
+              <Radio className="size-5 animate-pulse" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
                 DEFENSE INCIDENT SITREP REPORT
               </h2>
-              <p className="text-xs text-slate-400 font-mono">
-                NTRO National Defense & Industrial Risk Command Cell
+              <p className="text-[11px] text-slate-400 font-mono">
+                NTRO National Defense &amp; Industrial Risk Command Cell
               </p>
             </div>
           </div>
@@ -153,33 +175,34 @@ STATUS: VERIFIED & LOGGED
               size="sm"
               variant="outline"
               onClick={handleCopyText}
-              className="text-xs border-slate-700 bg-slate-850 hover:bg-slate-800 text-slate-200"
+              className="text-xs h-8 border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200"
             >
               {copied ? (
                 <>
-                  <Check className="size-3.5 mr-1.5 text-emerald-400" />
-                  Copied Brief
+                  <Check className="size-3.5 mr-1 text-emerald-400" />
+                  <span>Copied Brief</span>
                 </>
               ) : (
                 <>
-                  <Copy className="size-3.5 mr-1.5 text-slate-400" />
-                  Copy Text
+                  <Copy className="size-3.5 mr-1 text-slate-400" />
+                  <span>Copy Text</span>
                 </>
               )}
             </Button>
             <Button
               size="sm"
               onClick={handlePrint}
-              className="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+              className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
             >
-              <Printer className="size-3.5 mr-1.5" />
-              Print / Save PDF
+              <Printer className="size-3.5 mr-1" />
+              <span>Print / Save PDF</span>
             </Button>
             <Button
               size="sm"
               variant="ghost"
               onClick={onClose}
-              className="size-8 p-0 text-slate-400 hover:text-slate-100"
+              className="size-8 p-0 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+              title="Close modal (Esc)"
             >
               <X className="size-4" />
             </Button>
@@ -187,9 +210,9 @@ STATUS: VERIFIED & LOGGED
         </div>
 
         {/* Printable Report Body */}
-        <div ref={reportRef} className="p-6 space-y-5 print:p-0">
+        <div ref={reportRef} className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto print:p-0 print:max-h-none">
           {/* Header Metadata */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950/80 p-3 rounded-lg border border-slate-800 text-xs font-mono print:border-gray-400 print:bg-gray-50">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-950/80 p-3 rounded-lg border border-slate-800 text-xs font-mono print:border-gray-400 print:bg-gray-50">
             <div>
               <span className="text-slate-400 block text-[10px] uppercase">Incident ID</span>
               <strong className="text-amber-400 print:text-black">{incidentId}</strong>
@@ -212,7 +235,7 @@ STATUS: VERIFIED & LOGGED
           <div className="space-y-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 border-b border-slate-800 pb-1 print:text-black print:border-gray-400">
               <Flame className="size-3.5" />
-              1. Satellite Thermal Telemetry & Sensor Acquisition
+              1. Satellite Thermal Telemetry &amp; Sensor Acquisition
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="bg-slate-950/60 p-2 rounded border border-slate-800 print:border-gray-300">
@@ -247,7 +270,7 @@ STATUS: VERIFIED & LOGGED
                   <div className="text-sm font-bold text-slate-100 flex items-center gap-2 print:text-black">
                     {predictedClass}
                     <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-300 border-cyan-500/30 print:border-black print:text-black">
-                      VERIFIED VIA XGBOOST & RANDOM FOREST
+                      VERIFIED VIA XGBOOST &amp; RANDOM FOREST
                     </Badge>
                   </div>
                 </div>
@@ -314,7 +337,7 @@ STATUS: VERIFIED & LOGGED
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-slate-400 italic">
+              <div className="text-xs text-slate-400 bg-slate-950/40 p-2.5 rounded border border-slate-800/80">
                 Telemetry factors indicate elevated thermal energy release requiring operational vigilance.
               </div>
             )}
@@ -324,7 +347,7 @@ STATUS: VERIFIED & LOGGED
           <div className="space-y-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5 border-b border-slate-800 pb-1 print:text-black print:border-gray-400">
               <Factory className="size-3.5" />
-              4. Strategic Infrastructure & Spatial Exposure (PostGIS / OSM)
+              4. Strategic Infrastructure &amp; Spatial Exposure (PostGIS / OSM)
             </h3>
             <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 text-xs space-y-1.5 print:border-gray-300">
               <div className="flex justify-between">
@@ -346,7 +369,7 @@ STATUS: VERIFIED & LOGGED
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-2 text-xs print:bg-gray-100 print:border-gray-400">
             <div className="font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5 print:text-black">
               <AlertTriangle className="size-3.5" />
-              5. Tactical Directives & Operational Dispatch Checklist
+              5. Tactical Directives &amp; Operational Dispatch Checklist
             </div>
             <ul className="list-disc pl-4 space-y-1 text-slate-300 print:text-black">
               <li>Transmit automated XML/GeoJSON incident package to State Emergency Operations Centre (SEOC).</li>
@@ -359,11 +382,13 @@ STATUS: VERIFIED & LOGGED
           {/* Footer Block */}
           <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-mono print:border-gray-400 print:text-black">
             <span>OPERATOR: WATCH_OFFICER_NTRO_26162</span>
-            <span>SYSTEM: SIH26162 SATELLITE DISPATCH V1.0</span>
+            <span>SYSTEM: PYROS SATELLITE DISPATCH V1.0</span>
             <span>STATUS: RESTRICTED // TRANSMITTED</span>
           </div>
         </div>
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

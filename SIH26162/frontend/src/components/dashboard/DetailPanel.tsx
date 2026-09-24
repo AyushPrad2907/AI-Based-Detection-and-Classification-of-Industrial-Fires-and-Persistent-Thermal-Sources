@@ -494,47 +494,49 @@ export function DetailPanel({
       </div>
 
       {/* Persistence and Action Controls */}
-      {isObservation && obs && (
-        <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between text-xs text-slate-300">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={persistToDB}
-                onChange={(e) => setPersistToDB(e.target.checked)}
-                className="rounded border-slate-700 text-amber-500 focus:ring-amber-500 bg-slate-950"
-              />
-              <span>Persist classification result to PostgreSQL / PostGIS</span>
-            </label>
-          </div>
-
-          <Button
-            onClick={() => runLiveClassification(obs, true)}
-            disabled={isInferencing}
-            className="w-full bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700 text-slate-950 font-bold text-xs h-9 shadow-lg shadow-amber-500/20"
-          >
-            <Play className="size-3.5 mr-1.5 fill-slate-950" />
-            {isInferencing ? 'Running Inference...' : 'Run Live AI Classification & Risk Assessment'}
-          </Button>
-
-          <Button
-            onClick={() => setIsSitrepOpen(true)}
-            variant="outline"
-            className="w-full border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-semibold text-xs h-9"
-          >
-            <FileText className="size-3.5 mr-1.5 text-rose-400" />
-            Generate Defense SITREP Report
-          </Button>
-
-          {saveSuccessMessage && (
-            <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded p-2 text-center">
-              ✓ {saveSuccessMessage}
+      <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2.5">
+        {isObservation && obs && (
+          <>
+            <div className="flex items-center justify-between text-xs text-slate-300">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={persistToDB}
+                  onChange={(e) => setPersistToDB(e.target.checked)}
+                  className="rounded border-slate-700 text-amber-500 focus:ring-amber-500 bg-slate-950"
+                />
+                <span>Persist classification result to PostgreSQL / PostGIS</span>
+              </label>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Defense SITREP Report Modal */}
+            <Button
+              onClick={() => runLiveClassification(obs, true)}
+              disabled={isInferencing}
+              className="w-full bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700 text-slate-950 font-bold text-xs h-9 shadow-lg shadow-amber-500/20"
+            >
+              <Play className="size-3.5 mr-1.5 fill-slate-950" />
+              {isInferencing ? 'Running Inference...' : 'Run Live AI Classification & Risk Assessment'}
+            </Button>
+          </>
+        )}
+
+        <Button
+          onClick={() => setIsSitrepOpen(true)}
+          variant="outline"
+          className="w-full border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-semibold text-xs h-9"
+        >
+          <FileText className="size-3.5 mr-1.5 text-rose-400" />
+          Generate Defense SITREP Report
+        </Button>
+
+        {saveSuccessMessage && (
+          <div className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded p-2 text-center">
+            ✓ {saveSuccessMessage}
+          </div>
+        )}
+      </div>
+
+      {/* Defense SITREP Report Modal (Rendered into document.body via Portal) */}
       <SitrepModal
         isOpen={isSitrepOpen}
         onClose={() => setIsSitrepOpen(false)}
