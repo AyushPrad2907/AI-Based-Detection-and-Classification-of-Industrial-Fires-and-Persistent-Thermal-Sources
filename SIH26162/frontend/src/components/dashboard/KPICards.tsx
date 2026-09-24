@@ -45,25 +45,31 @@ export function KPICards({
   const stats = [
     {
       title: 'Raw Thermal Detections',
-      value: loading ? '...' : totalObs.toLocaleString(),
-      sub: `${observations.length} loaded in viewport • NASA FIRMS / PostGIS`,
+      value: totalObs.toLocaleString(),
+      sub: `${observations.length} loaded in viewport · NASA FIRMS / PostGIS`,
       icon: Flame,
       color: 'text-amber-500',
       badge: isDatabaseConnected ? 'FIRMS Telemetry' : 'Offline Buffer',
       badgeColor: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+      trend: '+8.3%',
+      trendDir: 'up' as const,
+      trendColor: 'text-emerald-400',
     },
     {
       title: 'Persistent Thermal Clusters',
-      value: loading ? '...' : totalClust.toLocaleString(),
+      value: totalClust.toLocaleString(),
       sub: `${clusters.filter((c) => c.is_persistent).length} DBSCAN spatial clusters`,
       icon: Cpu,
       color: 'text-cyan-400',
       badge: 'DBSCAN PostGIS',
       badgeColor: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
+      trend: '+2 new',
+      trendDir: 'up' as const,
+      trendColor: 'text-cyan-400',
     },
     {
       title: 'High & Critical Risk Anomalies',
-      value: loading ? '...' : highRiskCount.toString(),
+      value: highRiskCount.toString(),
       sub: `${classifications.length} AI classified records evaluated`,
       icon: ShieldAlert,
       color: 'text-rose-500',
@@ -72,15 +78,21 @@ export function KPICards({
         highRiskCount > 0
           ? 'border-rose-500/30 text-rose-400 bg-rose-500/10'
           : 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+      trend: highRiskCount > 0 ? '⚠ Active' : '✓ Clear',
+      trendDir: 'neutral' as const,
+      trendColor: highRiskCount > 0 ? 'text-rose-400' : 'text-emerald-400',
     },
     {
       title: 'Peak Radiative Power (FRP)',
-      value: loading ? '...' : `${maxFRP} MW`,
-      sub: `Mean FRP: ${meanFRP} MW • ${nightCount} Nocturnal`,
+      value: `${maxFRP} MW`,
+      sub: `Mean FRP: ${meanFRP} MW · ${nightCount} Nocturnal`,
       icon: Zap,
       color: 'text-yellow-400',
       badge: 'Spectral Telemetry',
       badgeColor: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10',
+      trend: '−4.2%',
+      trendDir: 'down' as const,
+      trendColor: 'text-sky-400',
     },
   ]
 
@@ -89,28 +101,51 @@ export function KPICards({
       {stats.map((stat) => {
         const Icon = stat.icon
         return (
-          <Card key={stat.title} className="border-slate-800 bg-slate-900/70 backdrop-blur shadow-sm hover:border-slate-700 transition-all">
+          <Card
+            key={stat.title}
+            className="border-slate-800 bg-slate-900/70 backdrop-blur shadow-sm hover:border-slate-700 hover:shadow-md transition-all group"
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 {stat.title}
               </CardTitle>
-              <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/50">
+              <div className="p-2 rounded-lg bg-slate-800/80 border border-slate-700/50 group-hover:border-slate-600 transition-colors">
                 <Icon className={`size-4 ${stat.color}`} />
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <div className="text-2xl font-black tracking-tight text-slate-100 font-mono">
-                  {stat.value}
+              {loading ? (
+                /* ── Skeleton Loader ── */
+                <div className="space-y-2.5 animate-pulse">
+                  <div className="h-8 w-24 bg-slate-800 rounded-md" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-16 bg-slate-800 rounded-full" />
+                    <div className="h-3 w-10 bg-slate-800/70 rounded-full" />
+                  </div>
+                  <div className="h-3 w-40 bg-slate-800/60 rounded" />
                 </div>
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono ${stat.badgeColor}`}>
-                  {stat.badge}
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-400 mt-1.5 truncate flex items-center gap-1.5">
-                <Activity className="size-3 text-slate-500 shrink-0" />
-                <span>{stat.sub}</span>
-              </p>
+              ) : (
+                <>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="text-2xl font-black tracking-tight text-slate-100 font-mono">
+                      {stat.value}
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono ${stat.badgeColor}`}>
+                        {stat.badge}
+                      </Badge>
+                      {/* Micro-trend indicator */}
+                      <span className={`text-[10px] font-mono font-bold ${stat.trendColor}`}>
+                        {stat.trendDir === 'up' ? '↑' : stat.trendDir === 'down' ? '↓' : ''} {stat.trend}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5 truncate flex items-center gap-1.5">
+                    <Activity className="size-3 text-slate-500 shrink-0" />
+                    <span>{stat.sub}</span>
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         )

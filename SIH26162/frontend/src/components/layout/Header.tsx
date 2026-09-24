@@ -47,10 +47,12 @@ export function Header() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-lg text-slate-100">SIH26162</span>
+              <span className="font-extrabold text-xl tracking-widest bg-gradient-to-r from-amber-400 to-red-500 bg-clip-text text-transparent">
+                PYROS
+              </span>
               <Badge variant="outline" className="text-[10px] uppercase font-mono">NTRO</Badge>
             </div>
-            <p className="text-xs text-slate-400 hidden sm:block">Industrial Fire & Thermal AI Detector</p>
+            <p className="text-xs text-slate-400 hidden sm:block">Industrial Fire &amp; Thermal AI Detector</p>
           </div>
         </Link>
 

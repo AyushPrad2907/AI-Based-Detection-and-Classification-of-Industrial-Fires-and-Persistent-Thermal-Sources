@@ -96,182 +96,207 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-screen">
-      {/* Top Header & Command Center Status */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-100 flex items-center gap-2">
-              <span>Command Center</span>
-              {isDemoMode ? (
-                <span className="text-purple-400 font-mono text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 animate-pulse">
-                  ⚗ DEMO MODE
+
+      {/* ═══════════════════════════════════════════════════
+          PYROS — 2-Row Command Header
+      ═══════════════════════════════════════════════════ */}
+      <div className="flex flex-col gap-3 border-b border-slate-800 pb-5">
+
+        {/* ── Row 1: Brand Title + Primary Controls ── */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+
+          {/* Brand */}
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
+                <span className="tracking-widest bg-gradient-to-r from-amber-400 to-red-500 bg-clip-text text-transparent">
+                  PYROS
                 </span>
-              ) : (
-                <span className="text-emerald-400 font-mono text-sm sm:text-base font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
-                  LIVE
-                </span>
-              )}
-            </h1>
+                {isDemoMode ? (
+                  <span className="text-purple-400 font-mono text-sm font-semibold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 animate-pulse">
+                    ⚗ DEMO
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-mono text-sm font-semibold px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
+                    {/* Pulsing red dot — classic "live" signal */}
+                    <span className="relative flex size-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                      <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+                    </span>
+                    LIVE
+                  </span>
+                )}
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
+              <span>Industrial Fire &amp; Thermal AI Detection System</span>
+              <span className="text-slate-600">•</span>
+              <span className="text-slate-500 font-mono text-xs">
+                Updated {lastRefreshed.toLocaleTimeString()}
+              </span>
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
-            <span>Near-Real-Time Thermal Anomaly &amp; Persistent Industrial Fire Detection System</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-400 font-mono text-xs">
-              Updated {lastRefreshed.toLocaleTimeString()}
-            </span>
-          </p>
+
+          {/* Primary Controls: Pulse + Refresh + View Switcher */}
+          <div className="flex flex-wrap items-center gap-2">
+
+            {/* Live Auto-Pulse Ticker */}
+            <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono">
+              <button
+                onClick={() => {
+                  const next = autoPulseInterval === 0 ? 30 : autoPulseInterval === 30 ? 15 : autoPulseInterval === 15 ? 60 : 0
+                  setAutoPulseInterval(next)
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  autoPulseInterval > 0
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Toggle Live Auto-Pulse Telemetry Polling"
+              >
+                <Timer className={`size-3.5 ${autoPulseInterval > 0 ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
+                <span>{autoPulseInterval > 0 ? `Pulse: ${countdown}s` : 'Auto-Pulse: Off'}</span>
+              </button>
+            </div>
+
+            {/* Refresh */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={fetchDashboardData}
+              disabled={loading}
+              className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+            >
+              <RefreshCw className={`size-3.5 mr-1.5 text-amber-500 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </Button>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
+              <button
+                onClick={() => setViewMode('split')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'split'
+                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Split View: Map and Telemetry Side-by-Side"
+              >
+                <Layers className="size-3.5" />
+                <span className="hidden sm:inline">Split</span>
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'map'
+                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Full Map View"
+              >
+                <MapIcon className="size-3.5" />
+                <span className="hidden sm:inline">Map</span>
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Data Table View"
+              >
+                <TableIcon className="size-3.5" />
+                <span className="hidden sm:inline">Table</span>
+              </button>
+              <button
+                onClick={() => setViewMode('analytics')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'analytics'
+                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Analytics &amp; Charts"
+              >
+                <BarChart3 className="size-3.5" />
+                <span className="hidden sm:inline">Analytics</span>
+              </button>
+              <button
+                onClick={() => setViewMode('simulator')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'simulator'
+                    ? 'bg-purple-600 text-white font-semibold shadow-sm'
+                    : 'text-purple-400 hover:text-purple-300'
+                }`}
+                title="Interactive AI Anomaly Sandbox Simulator"
+              >
+                <FlaskConical className="size-3.5" />
+                <span className="hidden sm:inline">AI Sandbox</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Action Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Live Auto-Pulse Ticker */}
-          <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs font-mono">
-            <button
-              onClick={() => {
-                const next = autoPulseInterval === 0 ? 30 : autoPulseInterval === 30 ? 15 : autoPulseInterval === 15 ? 60 : 0
-                setAutoPulseInterval(next)
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
-                autoPulseInterval > 0
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Toggle Live Auto-Pulse Telemetry Polling"
-            >
-              <Timer className={`size-3.5 ${autoPulseInterval > 0 ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
-              <span>{autoPulseInterval > 0 ? `Pulse: ${countdown}s` : 'Auto-Pulse: Off'}</span>
-            </button>
-          </div>
+        {/* ── Row 2: Status Badge + Secondary Actions ── */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
 
-          {/* Export CSV Intelligence Report */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => exportToCSV(observations, classifications, clusters)}
-            disabled={observations.length === 0}
-            className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
-            title="Download Full Intelligence Report in CSV format"
-          >
-            <Download className="size-3.5 mr-1 text-cyan-400" />
-            <span className="hidden sm:inline">Export Report</span>
-          </Button>
-
-          {/* Live / Demo Mode Toggle */}
-          <button
-            onClick={() => setDemoMode(!isDemoMode)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ${
-              isDemoMode
-                ? 'bg-purple-900/30 border-purple-500/40 text-purple-300 hover:bg-purple-900/50'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-            }`}
-            title={isDemoMode ? 'Switch to Live Mode' : 'Switch to Demo Mode — controlled SIH presentation'}
-          >
-            {isDemoMode ? (
-              <>
-                <Satellite className="size-3 text-emerald-400" />
-                <span className="text-emerald-400 font-bold">Switch to LIVE</span>
-              </>
-            ) : (
-              <>
-                <FlaskConical className="size-3 text-purple-400" />
-                <span className="text-purple-400 font-bold">DEMO MODE</span>
-              </>
-            )}
-          </button>
-
-          {/* Data Source Badge */}
+          {/* Status: Data Source (non-interactive, just informational) */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-900 border border-slate-800 text-slate-300">
             <Radio className="size-3 text-emerald-400 animate-pulse" />
             <span className="text-emerald-400 font-bold">NASA FIRMS</span>
             <span className="text-slate-500">|</span>
-            <span className="text-slate-400">PostGIS + AI</span>
+            <span className="text-slate-400">PostGIS + AI Classifier</span>
           </div>
 
-          {/* System Diagnostics Trigger */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsHealthModalOpen(true)}
-            className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
-          >
-            <Activity className="size-3.5 mr-1.5 text-cyan-400" />
-            <span>Diagnostics</span>
-          </Button>
+          {/* Secondary Actions */}
+          <div className="flex flex-wrap items-center gap-2">
 
-          {/* Refresh Button */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={fetchDashboardData}
-            disabled={loading}
-            className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
-          >
-            <RefreshCw className={`size-3.5 mr-1.5 text-amber-500 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </Button>
+            {/* Live / Demo Mode Toggle */}
+            <button
+              onClick={() => setDemoMode(!isDemoMode)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+                isDemoMode
+                  ? 'bg-purple-900/30 border-purple-500/40 text-purple-300 hover:bg-purple-900/50'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+              title={isDemoMode ? 'Switch to Live Mode' : 'Switch to Demo Mode — controlled SIH presentation'}
+            >
+              {isDemoMode ? (
+                <>
+                  <Satellite className="size-3 text-emerald-400" />
+                  <span className="text-emerald-400 font-bold">→ LIVE</span>
+                </>
+              ) : (
+                <>
+                  <FlaskConical className="size-3 text-purple-400" />
+                  <span className="text-purple-400">DEMO MODE</span>
+                </>
+              )}
+            </button>
 
-          {/* View Mode Switcher */}
-          <div className="flex items-center rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-xs">
-            <button
-              onClick={() => setViewMode('split')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'split'
-                  ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Split View: Map and Telemetry Side-by-Side"
+            {/* Export CSV Intelligence Report */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportToCSV(observations, classifications, clusters)}
+              disabled={observations.length === 0}
+              className="h-7 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+              title="Download Full Intelligence Report in CSV format"
             >
-              <Layers className="size-3.5" />
-              <span className="hidden sm:inline">Split</span>
-            </button>
-            <button
-              onClick={() => setViewMode('map')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'map'
-                  ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Full Map View"
+              <Download className="size-3.5 mr-1 text-cyan-400" />
+              <span>Export</span>
+            </Button>
+
+            {/* System Diagnostics Trigger */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsHealthModalOpen(true)}
+              className="h-7 text-xs bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
             >
-              <MapIcon className="size-3.5" />
-              <span className="hidden sm:inline">Map</span>
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'table'
-                  ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Data Table View"
-            >
-              <TableIcon className="size-3.5" />
-              <span className="hidden sm:inline">Table</span>
-            </button>
-            <button
-              onClick={() => setViewMode('analytics')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'analytics'
-                  ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Analytics & Charts"
-            >
-              <BarChart3 className="size-3.5" />
-              <span className="hidden sm:inline">Analytics</span>
-            </button>
-            <button
-              onClick={() => setViewMode('simulator')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'simulator'
-                  ? 'bg-purple-600 text-white font-semibold shadow-sm'
-                  : 'text-purple-400 hover:text-purple-300'
-              }`}
-              title="Interactive AI Anomaly Sandbox Simulator"
-            >
-              <FlaskConical className="size-3.5" />
-              <span className="hidden sm:inline">AI Sandbox</span>
-            </button>
+              <Activity className="size-3.5 mr-1.5 text-cyan-400" />
+              <span>Diagnostics</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -329,7 +354,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Live SSE Alert Radar Bar & Floating Anomaly Stream (Phase II) */}
+      {/* Live SSE Alert Radar Bar & Floating Anomaly Stream */}
       <LiveAlertRadar
         onFocusCoordinates={(lat, lon, alert) => {
           setTargetedAlertLocation({
@@ -384,7 +409,6 @@ export function DashboardPage() {
               targetedAlertLocation={targetedAlertLocation}
             />
 
-
             {/* Inline Analytics Preview */}
             <AnalyticsCharts
               observations={observations}
@@ -400,7 +424,6 @@ export function DashboardPage() {
                 selectedEntity={selectedEntity}
                 onClose={() => setSelectedEntity(null)}
                 onClassificationComplete={() => {
-                  // Refresh stored classifications count
                   ApiService.getClassifications(filters, 1, 100).then((res) => {
                     useDashboardStore.setState({ classifications: res.classifications || [] })
                   })
@@ -413,7 +436,8 @@ export function DashboardPage() {
                 </div>
                 <h3 className="text-base font-bold text-slate-100">Select an Anomaly on the Map</h3>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                  Click any active NASA FIRMS observation marker or persistent industrial cluster to inspect multi-factor explainable risk scores, spectral telemetry, and real-time AI classification.
+                  Click any active NASA FIRMS observation marker or persistent industrial cluster to inspect
+                  multi-factor explainable risk scores, spectral telemetry, and real-time AI classification.
                 </p>
                 <div className="pt-2">
                   {observations.length > 0 && (
@@ -463,7 +487,6 @@ export function DashboardPage() {
               loading={loading}
               targetedAlertLocation={targetedAlertLocation}
             />
-
           </div>
           {selectedEntity && (
             <div className="lg:col-span-4">
